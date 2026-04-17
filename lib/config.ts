@@ -21,6 +21,13 @@ export const TRACKED_TOPICS = [
     type: "kompas-epaper",
   },
   {
+    name: "Kompas TV",
+    queries: [],
+    directFeeds: [
+      "https://news.google.com/rss/search?q=site:kompas.tv&hl=id&gl=ID&ceid=ID:id",
+    ],
+  },
+  {
     name: "Kompas.com - Nasional",
     queries: ["Kompas Indonesia nasional"],
     directFeeds: ["https://rss.kompas.com/nasional"],
