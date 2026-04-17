@@ -10,6 +10,11 @@ export const FETCH_DELAY_MS = 1500;
 // Kompas Gramedia internal monitoring: news channels, social media, chat groups
 export const TRACKED_TOPICS = [
   {
+    name: "Kompas.id - Headline",
+    queries: [],
+    directFeeds: ["https://cds.kompas.id/rss/v1/article/list"],
+  },
+  {
     name: "Kompas.com - Nasional",
     queries: ["Kompas Indonesia nasional"],
     directFeeds: ["https://rss.kompas.com/nasional"],
