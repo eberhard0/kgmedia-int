@@ -28,6 +28,13 @@ export const TRACKED_TOPICS = [
     ],
   },
   {
+    name: "Grid.id",
+    queries: [],
+    directFeeds: [
+      "https://news.google.com/rss/search?q=site:grid.id&hl=id&gl=ID&ceid=ID:id",
+    ],
+  },
+  {
     name: "Kompas.com - Nasional",
     queries: ["Kompas Indonesia nasional"],
     directFeeds: ["https://rss.kompas.com/nasional"],
