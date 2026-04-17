@@ -15,6 +15,12 @@ export const TRACKED_TOPICS = [
     directFeeds: ["https://cds.kompas.id/rss/v1/article/list"],
   },
   {
+    name: "Kompas.id - ePaper (Print Edition)",
+    queries: [],
+    directFeeds: [],
+    type: "kompas-epaper",
+  },
+  {
     name: "Kompas.com - Nasional",
     queries: ["Kompas Indonesia nasional"],
     directFeeds: ["https://rss.kompas.com/nasional"],

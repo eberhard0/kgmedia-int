@@ -20,10 +20,87 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+interface KompasEpaperArticle {
+  headline?: string;
+  title?: string;
+  permalink?: string;
+  excerpt?: string;
+  publishedDate?: string;
+  page?: number;
+}
+
+async function fetchKompasEpaper(topicName: string, seenUrls: Set<string>): Promise<Article[]> {
+  const today = new Date();
+  const dateStr =
+    today.getUTCFullYear().toString() +
+    String(today.getUTCMonth() + 1).padStart(2, "0") +
+    String(today.getUTCDate()).padStart(2, "0");
+
+  const articles: Article[] = [];
+  const seenTitles = new Set<string>();
+
+  // Fetch all pages (typically 1-24 for daily edition)
+  for (let page = 1; page <= 24; page++) {
+    try {
+      const res = await fetch(
+        `https://cds.kompas.id/api/v2/article/print/${dateStr}?printpage=${page}`,
+        {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+          },
+          cache: "no-store",
+        }
+      );
+
+      if (!res.ok) break;
+      const data = await res.json();
+      const results: KompasEpaperArticle[] = data.result || [];
+
+      if (results.length === 0) break;
+
+      for (const item of results) {
+        const title = (item.headline || item.title || "").trim();
+        if (!title) continue;
+
+        const norm = normalizeTitle(title);
+        if (seenTitles.has(norm)) continue;
+        seenTitles.add(norm);
+
+        const link = item.permalink || "";
+        if (!link || seenUrls.has(link)) continue;
+        seenUrls.add(link);
+
+        const sentiment = await analyzeSentiment(title);
+        articles.push({
+          topic: topicName,
+          title,
+          url: link,
+          source: `Kompas.id ePaper p${item.page || page}`,
+          published_at: item.publishedDate
+            ? new Date(item.publishedDate).toISOString()
+            : null,
+          ...sentiment,
+        });
+      }
+    } catch {
+      break;
+    }
+
+    await sleep(500);
+  }
+
+  return articles;
+}
+
 export async function scrapeTopic(
-  topicConfig: { name: string; queries: string[]; directFeeds?: string[] },
+  topicConfig: { name: string; queries: string[]; directFeeds?: string[]; type?: string },
   seenUrls: Set<string>
 ): Promise<Article[]> {
+  if (topicConfig.type === "kompas-epaper") {
+    return fetchKompasEpaper(topicConfig.name, seenUrls);
+  }
+
   const searchFeeds = getFeedUrls(topicConfig.queries);
   const directFeeds = topicConfig.directFeeds || [];
   const feedUrls = [...directFeeds, ...searchFeeds];
