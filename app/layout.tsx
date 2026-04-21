@@ -8,7 +8,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "KG Media Internal Radar",
+  title: "KG Media Internal Prediction Algo",
   description: "Internal news, social media, and forum monitoring for Kompas Gramedia",
 };
 

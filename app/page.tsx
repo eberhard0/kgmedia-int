@@ -15,6 +15,8 @@ interface TopicStats {
 
 interface TopicData {
   topic: string;
+  platform?: string;
+  handles?: string[];
   stats: TopicStats;
 }
 
@@ -162,7 +164,7 @@ export default function Dashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-            <span className="text-blue-400">KG Media</span> INTERNAL RADAR
+            <span className="text-blue-400">KG Media</span> Internal Prediction Algo
           </h1>
           <p className="text-sm text-slate-500 mt-1">
             Internal Monitoring — News, Social Media, Forums
@@ -389,6 +391,23 @@ export default function Dashboard() {
                     {t.stats.trend}
                   </span>
                 </div>
+                {t.platform && t.handles && t.handles.length > 0 && (
+                  <div className="mb-3 pb-2 border-b border-slate-700/40">
+                    <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">
+                      {t.platform} · tracking
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {t.handles.map((h) => (
+                        <span
+                          key={h}
+                          className="text-[11px] px-1.5 py-0.5 rounded bg-slate-700/40 text-slate-300 font-mono"
+                        >
+                          {h}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-1">
                   {t.stats.sample_headlines.length > 0 ? (
                     t.stats.sample_headlines.slice(0, 4).map((h, i) => {
@@ -429,9 +448,9 @@ export default function Dashboard() {
 
       {/* Footer */}
       <div className="mt-8 text-center text-xs text-slate-600">
-        &copy; Eberhard Ojong 2026 | KG Media Internal Radar{" "}
+        &copy; Eberhard Ojong 2026 | KG Media Internal Prediction Algo{" "}
         <a href="/changelog" className="text-blue-400 hover:text-blue-300 underline">
-          v1.0.5
+          v1.0.6
         </a>{" "}
         | Auto-refreshes every 30s | Cron scan daily |{" "}
         <a href="/faq" className="text-blue-400 hover:text-blue-300 underline">

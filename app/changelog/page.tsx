@@ -9,11 +9,21 @@ export default function Changelog() {
           Changelog
         </h1>
         <p className="text-sm text-slate-500 mt-1">
-          KG Media Internal Radar version history
+          KG Media Internal Prediction Algo version history
         </p>
       </div>
 
       <div className="space-y-6">
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.0.6</span>
+            <span className="text-xs text-slate-500">April 21, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Added per-platform social monitoring for Threads, Instagram, TikTok, and Facebook. Each card shows which business units are tracked — @hariankompas, @kompascom, @kompastv, @kompasiana — via Google News site-filtered feeds. The existing Twitter/X box is unchanged.
+          </p>
+        </div>
+
         <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
           <div className="flex items-center gap-3 mb-2">
             <span className="text-blue-400 font-bold">v1.0.5</span>

@@ -30,6 +30,8 @@ export async function GET() {
 
     topicsData.push({
       topic: topicConfig.name,
+      platform: topicConfig.platform,
+      handles: topicConfig.handles,
       stats,
       snapshots: snapshots || [],
     });

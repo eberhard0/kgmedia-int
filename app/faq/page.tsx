@@ -6,7 +6,7 @@ export default function FAQ() {
           &larr; Back to Dashboard
         </a>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight mt-4">
-          <span className="text-blue-400">KG Media</span> INTERNAL RADAR — FAQ
+          <span className="text-blue-400">KG Media</span> Internal Prediction Algo — FAQ
         </h1>
         <p className="text-sm text-slate-500 mt-1">
           How to read and use the dashboard
@@ -201,9 +201,9 @@ export default function FAQ() {
 
       {/* Footer */}
       <div className="mt-12 text-center text-xs text-slate-600">
-        &copy; Eberhard Ojong 2026 | KG Media Internal Radar{" "}
+        &copy; Eberhard Ojong 2026 | KG Media Internal Prediction Algo{" "}
         <a href="/changelog" className="text-blue-400 hover:text-blue-300 underline">
-          v1.0.5
+          v1.0.6
         </a>{" "}
         | KG Media News
       </div>
