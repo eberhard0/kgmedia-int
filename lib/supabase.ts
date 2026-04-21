@@ -56,3 +56,28 @@ export interface TopicSnapshot {
   slope: number;
   trend: string;
 }
+
+export interface AmplificationMention {
+  id?: number;
+  url: string;
+  platform: string;
+  source: string;
+  title: string;
+  snippet: string;
+  published_at: string | null;
+  scraped_at?: string;
+  tokens: string[];
+  trigger_query: string;
+  cluster_id: number | null;
+}
+
+export interface AmplificationCluster {
+  id?: number;
+  keywords: string[];
+  first_seen: string;
+  last_seen: string;
+  mention_count: number;
+  source_count: number;
+  status: string;
+  updated_at?: string;
+}

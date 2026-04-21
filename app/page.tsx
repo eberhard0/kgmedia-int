@@ -65,6 +65,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [scanning, setScanning] = useState(false);
+  const [amplificationAlerts, setAmplificationAlerts] = useState(0);
   const [scanProgress, setScanProgress] = useState<{
     current: number;
     total: number;
@@ -155,12 +156,59 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/amplification");
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled) setAmplificationAlerts(json.alert_count || 0);
+      } catch {
+        // ignore
+      }
+    };
+    load();
+    const t = setInterval(load, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, []);
+
   const alerts = (data?.topics || []).filter(
     (t) => t.stats.trend === "CRITICAL" || t.stats.trend === "ESCALATING"
   );
 
   return (
-    <main className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto">
+    <main
+      className={`min-h-screen p-4 md:p-8 max-w-7xl mx-auto ${
+        amplificationAlerts > 0 ? "ring-4 ring-red-500/60 animate-pulse" : ""
+      }`}
+    >
+      {amplificationAlerts > 0 && (
+        <a
+          href="/amplification"
+          className="block mb-6 border-2 border-red-500 bg-red-500/20 rounded-lg p-4 animate-pulse hover:bg-red-500/30 transition-colors"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="text-red-400 text-2xl">🚨</span>
+              <div>
+                <div className="text-red-300 font-bold uppercase tracking-wider">
+                  {amplificationAlerts} Amplification Alert
+                  {amplificationAlerts > 1 ? "s" : ""} Active
+                </div>
+                <div className="text-xs text-slate-300 mt-1">
+                  3+ external sources reporting on the same Kompas-related
+                  topic. Click to review.
+                </div>
+              </div>
+            </div>
+            <span className="text-red-300 text-sm underline">Open →</span>
+          </div>
+        </a>
+      )}
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div>
@@ -451,9 +499,13 @@ export default function Dashboard() {
       <div className="mt-8 text-center text-xs text-slate-600">
         &copy; Eberhard Ojong 2026 | KG Media Internal Prediction Algo{" "}
         <a href="/changelog" className="text-blue-400 hover:text-blue-300 underline">
-          v1.0.7
+          v1.0.8
         </a>{" "}
         | Auto-refreshes every 30s | Cron scan daily |{" "}
+        <a href="/amplification" className="text-blue-400 hover:text-blue-300 underline">
+          Amplification
+        </a>{" "}
+        |{" "}
         <a href="/faq" className="text-blue-400 hover:text-blue-300 underline">
           FAQ
         </a>
