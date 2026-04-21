@@ -186,10 +186,13 @@ export async function runAmplificationScan(
 
   let inserted = 0;
   if (toInsert.length > 0) {
-    const { data } = await admin
+    const { data, error } = await admin
       .from("amplification_mentions")
       .upsert(toInsert, { onConflict: "url", ignoreDuplicates: true })
       .select("id");
+    if (error) {
+      throw new Error(`Supabase insert failed: ${error.message}`);
+    }
     inserted = data?.length || 0;
   }
 
