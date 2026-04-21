@@ -1,0 +1,217 @@
+// Apify integration — dormant until APIFY_TOKEN is set in the environment.
+// When active, fetches posts from TikTok, Instagram, Threads, Facebook, and
+// X/Twitter via maintained Apify actors and returns normalized RawMentions
+// the amplification pipeline can merge alongside Google News / Reddit data.
+
+export interface ApifyRawMention {
+  url: string;
+  platform: string;
+  source: string;
+  title: string;
+  snippet: string;
+  published_at: string | null;
+  trigger_query: string;
+}
+
+export function isApifyEnabled(): boolean {
+  return !!process.env.APIFY_TOKEN;
+}
+
+interface ApifyActorInput {
+  [key: string]: unknown;
+}
+
+async function runActor(actorId: string, input: ApifyActorInput): Promise<unknown[]> {
+  const token = process.env.APIFY_TOKEN;
+  if (!token) return [];
+  const endpoint = `https://api.apify.com/v2/acts/${encodeURIComponent(actorId)}/run-sync-get-dataset-items?token=${token}`;
+  try {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) {
+      console.warn(`Apify ${actorId} returned ${res.status}`);
+      return [];
+    }
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.warn(`Apify ${actorId} threw:`, err);
+    return [];
+  }
+}
+
+function truncate(s: string | undefined | null, n: number): string {
+  if (!s) return "";
+  return s.length > n ? s.slice(0, n) : s;
+}
+
+// ---------- TikTok (clockworks/free-tiktok-scraper) ----------
+interface TikTokItem {
+  webVideoUrl?: string;
+  authorMeta?: { name?: string; nickName?: string };
+  text?: string;
+  createTimeISO?: string;
+}
+
+export async function searchTikTok(
+  keywords: string[],
+  resultsPerPage = 20
+): Promise<ApifyRawMention[]> {
+  if (!isApifyEnabled() || keywords.length === 0) return [];
+  const items = (await runActor("clockworks/free-tiktok-scraper", {
+    hashtags: keywords,
+    resultsPerPage,
+  })) as TikTokItem[];
+  return items
+    .filter((i) => i.webVideoUrl)
+    .map((i) => ({
+      url: i.webVideoUrl!,
+      platform: "tiktok",
+      source: i.authorMeta?.name || i.authorMeta?.nickName || "",
+      title: truncate(i.text, 200) || "(TikTok post)",
+      snippet: truncate(i.text, 500),
+      published_at: i.createTimeISO || null,
+      trigger_query: `TikTok: ${keywords.join(", ")}`,
+    }));
+}
+
+// ---------- Instagram (apify/instagram-scraper) ----------
+interface InstagramItem {
+  url?: string;
+  ownerUsername?: string;
+  caption?: string;
+  timestamp?: string;
+  type?: string;
+}
+
+export async function searchInstagram(
+  keywords: string[],
+  resultsLimit = 20
+): Promise<ApifyRawMention[]> {
+  if (!isApifyEnabled() || keywords.length === 0) return [];
+  const items = (await runActor("apify/instagram-scraper", {
+    search: keywords,
+    searchType: "hashtag",
+    resultsLimit,
+  })) as InstagramItem[];
+  return items
+    .filter((i) => i.url)
+    .map((i) => ({
+      url: i.url!,
+      platform: "instagram",
+      source: i.ownerUsername || "",
+      title: truncate(i.caption, 200) || `(Instagram ${i.type || "post"})`,
+      snippet: truncate(i.caption, 500),
+      published_at: i.timestamp || null,
+      trigger_query: `Instagram: ${keywords.join(", ")}`,
+    }));
+}
+
+// ---------- Threads (curious-coder/threads-scraper) ----------
+interface ThreadsItem {
+  url?: string;
+  user?: { username?: string };
+  text?: string;
+  publishedOn?: string;
+}
+
+export async function searchThreads(
+  keywords: string[],
+  resultsLimit = 20
+): Promise<ApifyRawMention[]> {
+  if (!isApifyEnabled() || keywords.length === 0) return [];
+  const items = (await runActor("curious-coder/threads-scraper", {
+    query: keywords.join(" "),
+    resultsLimit,
+  })) as ThreadsItem[];
+  return items
+    .filter((i) => i.url)
+    .map((i) => ({
+      url: i.url!,
+      platform: "threads",
+      source: i.user?.username || "",
+      title: truncate(i.text, 200) || "(Threads post)",
+      snippet: truncate(i.text, 500),
+      published_at: i.publishedOn || null,
+      trigger_query: `Threads: ${keywords.join(", ")}`,
+    }));
+}
+
+// ---------- Facebook (apify/facebook-posts-scraper) ----------
+interface FacebookItem {
+  url?: string;
+  user?: { name?: string };
+  text?: string;
+  time?: string;
+}
+
+export async function searchFacebook(
+  pageUrls: string[],
+  resultsLimit = 15
+): Promise<ApifyRawMention[]> {
+  if (!isApifyEnabled() || pageUrls.length === 0) return [];
+  const items = (await runActor("apify/facebook-posts-scraper", {
+    startUrls: pageUrls.map((u) => ({ url: u })),
+    resultsLimit,
+  })) as FacebookItem[];
+  return items
+    .filter((i) => i.url)
+    .map((i) => ({
+      url: i.url!,
+      platform: "facebook",
+      source: i.user?.name || "",
+      title: truncate(i.text, 200) || "(Facebook post)",
+      snippet: truncate(i.text, 500),
+      published_at: i.time || null,
+      trigger_query: `Facebook: ${pageUrls.length} pages`,
+    }));
+}
+
+// ---------- X / Twitter (apidojo/twitter-scraper-lite) ----------
+interface TwitterItem {
+  url?: string;
+  author?: { userName?: string };
+  text?: string;
+  createdAt?: string;
+}
+
+export async function searchTwitter(
+  query: string,
+  maxItems = 30
+): Promise<ApifyRawMention[]> {
+  if (!isApifyEnabled() || !query) return [];
+  const items = (await runActor("apidojo/twitter-scraper-lite", {
+    searchTerms: [query],
+    maxItems,
+  })) as TwitterItem[];
+  return items
+    .filter((i) => i.url)
+    .map((i) => ({
+      url: i.url!,
+      platform: "twitter",
+      source: i.author?.userName || "",
+      title: truncate(i.text, 200) || "(tweet)",
+      snippet: truncate(i.text, 500),
+      published_at: i.createdAt || null,
+      trigger_query: `X: ${query}`,
+    }));
+}
+
+// ---------- Orchestrator ----------
+export async function runAllApifySearches(
+  keywords: string[],
+  facebookPages: string[]
+): Promise<ApifyRawMention[]> {
+  if (!isApifyEnabled()) return [];
+  const results = await Promise.all([
+    searchTikTok(keywords).catch(() => []),
+    searchInstagram(keywords).catch(() => []),
+    searchThreads(keywords).catch(() => []),
+    searchFacebook(facebookPages).catch(() => []),
+    searchTwitter(keywords.join(" OR ")).catch(() => []),
+  ]);
+  return results.flat();
+}

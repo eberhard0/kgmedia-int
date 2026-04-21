@@ -4,6 +4,13 @@ import {
   type AmplificationMention,
   type AmplificationCluster,
 } from "./supabase";
+import { isApifyEnabled, runAllApifySearches } from "./apify";
+import {
+  isEmbeddingsEnabled,
+  embedBatch,
+  cosineSim,
+  SEMANTIC_CLUSTER_THRESHOLD,
+} from "./embeddings";
 
 const parser = new Parser({
   timeout: 15000,
@@ -252,6 +259,23 @@ export async function runAmplificationScan(
     }
   }
 
+  if (isApifyEnabled()) {
+    onProgress?.("Apify enabled — fetching TikTok/IG/Threads/FB/X posts");
+    const socialKeywords = ["hariankompas", "kompascom", "kompastv", "kompasiana"];
+    const facebookPages = [
+      "https://www.facebook.com/hariankompas",
+      "https://www.facebook.com/KOMPAScom",
+      "https://www.facebook.com/kompastv",
+      "https://www.facebook.com/KOMPASIANAdotcom",
+    ];
+    const apifyMentions = await runAllApifySearches(
+      socialKeywords,
+      facebookPages
+    );
+    onProgress?.(`Apify returned ${apifyMentions.length} social posts`);
+    raw.push(...apifyMentions);
+  }
+
   onProgress?.(`Fetched ${raw.length} raw mentions`);
 
   const admin = getSupabaseAdmin();
@@ -330,17 +354,50 @@ async function reclusterRecent(): Promise<{
     return { clustersActive: 0, clustersNew: 0 };
   }
 
-  const groups: AmplificationMention[][] = [];
-  for (const m of items) {
-    let placed = false;
-    for (const g of groups) {
-      if (g.some((existing) => jaccard(existing.tokens, m.tokens) >= JACCARD_MATCH_THRESHOLD)) {
-        g.push(m);
-        placed = true;
-        break;
+  let groups: AmplificationMention[][];
+  if (isEmbeddingsEnabled()) {
+    const texts = items.map((m) => `${m.title}\n${m.tokens.join(" ")}`);
+    const embeds = await embedBatch(texts);
+    groups = [];
+    const groupEmbeds: number[][][] = [];
+    for (let i = 0; i < items.length; i++) {
+      const e = embeds[i];
+      let placed = false;
+      for (let gi = 0; gi < groups.length; gi++) {
+        if (
+          groupEmbeds[gi].some(
+            (ge) => cosineSim(ge, e) >= SEMANTIC_CLUSTER_THRESHOLD
+          )
+        ) {
+          groups[gi].push(items[i]);
+          groupEmbeds[gi].push(e);
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) {
+        groups.push([items[i]]);
+        groupEmbeds.push([e]);
       }
     }
-    if (!placed) groups.push([m]);
+  } else {
+    groups = [];
+    for (const m of items) {
+      let placed = false;
+      for (const g of groups) {
+        if (
+          g.some(
+            (existing) =>
+              jaccard(existing.tokens, m.tokens) >= JACCARD_MATCH_THRESHOLD
+          )
+        ) {
+          g.push(m);
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) groups.push([m]);
+    }
   }
 
   const qualifying = groups.filter((g) => {
