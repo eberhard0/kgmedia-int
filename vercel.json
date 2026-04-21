@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/amplification/scan",
-      "schedule": "0 */3 * * *"
+      "schedule": "30 6 * * *"
     }
   ]
 }
