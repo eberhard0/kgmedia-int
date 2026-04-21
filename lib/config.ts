@@ -5,7 +5,7 @@ export const SLOPE_THRESHOLD_ESCALATION = -0.05;
 export const SLOPE_THRESHOLD_DEESCALATION = 0.05;
 export const SLOPE_THRESHOLD_CRITICAL = -0.1;
 export const NUM_ARTICLES_PER_FEED = 30;
-export const FETCH_DELAY_MS = 1500;
+export const FETCH_DELAY_MS = 600;
 
 export interface TopicConfig {
   name: string;
@@ -28,7 +28,7 @@ const socialPlatformTopics: TopicConfig[] = SOCIAL_PLATFORMS.map((p) => {
   const siteQuery = `site:${p.domain} (${SOCIAL_HANDLES.join(" OR ")})`;
   return {
     name: `Social - ${p.name}`,
-    queries: SOCIAL_HANDLES.map((h) => `"@${h}" ${p.name}`),
+    queries: [],
     directFeeds: [
       `https://news.google.com/rss/search?q=${encodeURIComponent(siteQuery)}&hl=id&gl=ID&ceid=ID:id`,
     ],

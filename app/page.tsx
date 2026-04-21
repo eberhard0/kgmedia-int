@@ -143,6 +143,7 @@ export default function Dashboard() {
         }
       }
     } finally {
+      await fetchData();
       setScanning(false);
       setScanProgress(null);
     }
