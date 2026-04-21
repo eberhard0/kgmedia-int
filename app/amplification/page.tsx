@@ -29,6 +29,7 @@ interface ApiResponse {
   updated_at: string;
   alert_count: number;
   clusters: Cluster[];
+  recent: Mention[];
 }
 
 function formatTime(iso: string): string {
@@ -184,15 +185,47 @@ export default function Amplification() {
           Loading amplification data…
         </div>
       ) : !hasAlerts ? (
-        <div className="text-center p-8 border border-slate-700/50 rounded-lg bg-slate-800/20 text-slate-400">
-          <div className="text-4xl mb-2">✓</div>
-          <div className="font-semibold text-slate-300">
-            No active amplification alerts
+        <>
+          <div className="text-center p-6 border border-slate-700/50 rounded-lg bg-slate-800/20 text-slate-400 mb-6">
+            <div className="text-4xl mb-2">✓</div>
+            <div className="font-semibold text-slate-300">
+              No active amplification alerts
+            </div>
+            <div className="text-xs text-slate-500 mt-1">
+              No Kompas controversy clusters detected in the last 24 hours.
+              Showing latest raw mentions below for visibility.
+            </div>
           </div>
-          <div className="text-xs text-slate-500 mt-1">
-            No Kompas controversy clusters detected in the last 24 hours.
-          </div>
-        </div>
+          {data!.recent && data!.recent.length > 0 && (
+            <div className="border border-slate-700/50 rounded-lg bg-slate-800/20">
+              <div className="px-4 py-3 border-b border-slate-700/50 text-xs uppercase tracking-wider text-slate-400">
+                Latest Mentions (last 24h) — {data!.recent.length}
+              </div>
+              <div className="divide-y divide-slate-700/40">
+                {data!.recent.map((m) => (
+                  <div key={m.id} className="p-3 flex flex-col gap-1 text-sm">
+                    <a
+                      href={m.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:text-blue-300 underline"
+                    >
+                      {m.title}
+                    </a>
+                    <div className="text-xs text-slate-500 flex flex-wrap gap-2">
+                      <span className="px-1.5 py-0.5 rounded bg-slate-700/50 text-slate-300 font-mono">
+                        {m.platform}
+                      </span>
+                      <span>{m.source}</span>
+                      <span>·</span>
+                      <span>{formatTime(m.published_at || m.scraped_at)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       ) : (
         <div className="space-y-4">
           {data!.clusters.map((c) => {

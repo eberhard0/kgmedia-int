@@ -15,7 +15,7 @@ const parser = new Parser({
 
 export const AMPLIFICATION_WINDOW_HOURS = 24;
 export const CLUSTER_ALERT_THRESHOLD = 3;
-const JACCARD_MATCH_THRESHOLD = 0.3;
+const JACCARD_MATCH_THRESHOLD = 0.2;
 
 // Indonesian + English controversy trigger terms that suggest a Kompas article
 // has been challenged, denied, or called out publicly.
@@ -310,6 +310,20 @@ async function reclusterRecent(): Promise<{
   }
 
   return { clustersActive: qualifying.length, clustersNew };
+}
+
+export async function getRecentMentions(limit = 50): Promise<AmplificationMention[]> {
+  const admin = getSupabaseAdmin();
+  const cutoff = new Date(
+    Date.now() - AMPLIFICATION_WINDOW_HOURS * 3600 * 1000
+  ).toISOString();
+  const { data } = await admin
+    .from("amplification_mentions")
+    .select("*")
+    .gte("scraped_at", cutoff)
+    .order("scraped_at", { ascending: false })
+    .limit(limit);
+  return (data || []) as AmplificationMention[];
 }
 
 export async function getActiveClusters(): Promise<
