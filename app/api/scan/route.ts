@@ -20,15 +20,9 @@ async function getRecentArticles(topic: string) {
   return data || [];
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   const encoder = new TextEncoder();
-  const isCron = (request.headers.get("user-agent") || "").startsWith(
-    "vercel-cron"
-  );
-  const topics = isCron
-    ? TRACKED_TOPICS
-    : TRACKED_TOPICS.filter((t) => t.type !== "kompas-epaper");
-  const total = topics.length;
+  const total = TRACKED_TOPICS.length;
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -43,8 +37,8 @@ export async function GET(request: Request) {
 
         const seenUrls = await getExistingUrls();
 
-        for (let i = 0; i < topics.length; i++) {
-          const topicConfig = topics[i];
+        for (let i = 0; i < TRACKED_TOPICS.length; i++) {
+          const topicConfig = TRACKED_TOPICS[i];
 
           send({
             type: "scanning",

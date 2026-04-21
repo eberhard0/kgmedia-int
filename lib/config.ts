@@ -11,7 +11,6 @@ export interface TopicConfig {
   name: string;
   queries: string[];
   directFeeds?: string[];
-  type?: string;
   platform?: string;
   handles?: string[];
 }
@@ -44,12 +43,6 @@ export const TRACKED_TOPICS: TopicConfig[] = [
     name: "Kompas.id - Headline",
     queries: [],
     directFeeds: ["https://cds.kompas.id/rss/v1/article/list"],
-  },
-  {
-    name: "Kompas.id - ePaper (Print Edition)",
-    queries: [],
-    directFeeds: [],
-    type: "kompas-epaper",
   },
   {
     name: "Kompas TV",

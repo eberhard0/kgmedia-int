@@ -323,7 +323,7 @@ export default function Dashboard() {
             {loading && !data ? (
               <tr>
                 <td colSpan={8} className="text-center p-8 text-slate-500">
-                  Loading radar data...
+                  Loading Algo Data...
                 </td>
               </tr>
             ) : (
@@ -450,7 +450,7 @@ export default function Dashboard() {
       <div className="mt-8 text-center text-xs text-slate-600">
         &copy; Eberhard Ojong 2026 | KG Media Internal Prediction Algo{" "}
         <a href="/changelog" className="text-blue-400 hover:text-blue-300 underline">
-          v1.0.6
+          v1.0.7
         </a>{" "}
         | Auto-refreshes every 30s | Cron scan daily |{" "}
         <a href="/faq" className="text-blue-400 hover:text-blue-300 underline">
