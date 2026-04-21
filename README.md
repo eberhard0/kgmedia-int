@@ -88,6 +88,60 @@ After the next function cold start, `Scan Now` on `/amplification` will emit
 progress messages including `Apify enabled — fetching TikTok/IG/Threads/FB/X
 posts` and the clustering step will use semantic embeddings.
 
+### For admins / delegated setup
+
+If a separate admin owns the Apify and OpenAI accounts and you want the API
+keys added without the project owner ever seeing the values, use Vercel's
+**Sensitive** env var flag. Once saved as Sensitive, the value is
+write-once: the runtime can still read it, but nobody can reveal it from
+the dashboard afterwards — not even the project owner.
+
+#### Grant the admin access
+
+Invite them to the Vercel team from
+https://vercel.com/eberhard0s-projects/~/settings/members — Member or
+Contributor role is enough to add env vars.
+
+#### Admin adds the keys via dashboard
+
+1. Open https://vercel.com/eberhard0s-projects/kgmedia-int/settings/environment-variables
+2. Click **Add New**
+3. Name: `APIFY_TOKEN`, paste value
+4. **Check the "Sensitive" checkbox** (the key step — makes it write-once)
+5. Scope: Production (and Preview if desired)
+6. Save. Repeat for `OPENAI_API_KEY`.
+
+#### Admin adds the keys via CLI
+
+```bash
+vercel login
+vercel link    # run inside a clone of this repo, selects the project
+vercel env add APIFY_TOKEN production --sensitive
+# paste value at prompt
+vercel env add OPENAI_API_KEY production --sensitive
+```
+
+#### Provider-side hygiene
+
+So the admin isn't exposing their personal account-wide keys, they should
+create **scoped tokens** rather than sharing their master key:
+
+- **Apify**: https://console.apify.com/account/integrations → *Create new
+  token* → name it e.g. `kgmedia-int-prod` → restrict scope to the actors
+  the app uses. Revocable any time without breaking the admin's other
+  projects.
+- **OpenAI**: https://platform.openai.com/api-keys → *Create secret key* →
+  assign to a dedicated Project (e.g. `kgmedia-int`) so usage and limits
+  are isolated and the key can be revoked independently.
+
+For centralized company billing rather than personal accounts, both
+platforms offer org/team accounts:
+
+- Apify Organizations:
+  https://docs.apify.com/platform/collaboration/organization-account
+- OpenAI Projects inside an org:
+  https://platform.openai.com/docs/guides/production-best-practices/organization-and-project
+
 ## Database schema
 
 `supabase-schema.sql` at repo root contains all DDL. When the schema changes,
