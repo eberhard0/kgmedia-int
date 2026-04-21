@@ -20,19 +20,29 @@ const JACCARD_MATCH_THRESHOLD = 0.2;
 // Indonesian + English controversy trigger terms that suggest a Kompas article
 // has been challenged, denied, or called out publicly.
 const CONTROVERSY_TRIGGERS = [
-  "bantah",
-  "keliru",
-  "klarifikasi",
-  "teguran",
-  "hoax",
-  "palsu",
-  "bohong",
-  "protes",
-  "dipelintir",
-  "mengecam",
-  "out of context",
-  "retract",
-  "correction",
+  // Denial / rebuttal
+  "bantah", "bantahan", "membantah", "dibantah",
+  // Error / correction
+  "keliru", "ralat", "koreksi",
+  // Clarification
+  "klarifikasi", "diklarifikasi",
+  // Rebuke / reprimand
+  "teguran", "menegur", "ditegur", "tegur",
+  // Fabrication
+  "hoax", "hoaks", "palsu", "bohong", "dusta",
+  // Protest / criticism
+  "protes", "diprotes", "memprotes", "demo",
+  "mengecam", "dikecam", "kecaman",
+  // Misleading
+  "menyesatkan", "sesat", "dipelintir", "pelintir",
+  // Apology / retraction
+  "permintaan maaf", "meminta maaf", "ralat",
+  // Legal action
+  "somasi", "disomasi", "tuntut", "menggugat", "digugat",
+  // English
+  "out of context", "taken out of context",
+  "retract", "retraction", "correction",
+  "denied", "disputed", "misrepresented",
 ];
 
 const STOPWORDS = new Set([
@@ -74,23 +84,109 @@ function redditSearchRss(query: string): string {
   return `https://www.reddit.com/search.rss?q=${encoded}&sort=new`;
 }
 
-export function buildWatchQueries(): Array<{ query: string; feeds: string[] }> {
+function subredditRss(sub: string): string {
+  return `https://www.reddit.com/r/${sub}/new/.rss?limit=25`;
+}
+
+const NITTER_INSTANCE = "https://nitter.poast.org";
+function nitterSearchRss(query: string): string {
+  return `${NITTER_INSTANCE}/search/rss?f=tweets&q=${encodeURIComponent(query)}`;
+}
+
+// Pull consecutive capitalized tokens out of a headline — covers most named
+// entities (people, orgs, places) without a full NER model.
+export function extractHeadlineEntities(title: string): string[] {
+  const tokens = title.split(/\s+/);
+  const entities: string[] = [];
+  let current: string[] = [];
+  for (const t of tokens) {
+    const clean = t.replace(/[^\p{L}\p{N}]/gu, "");
+    if (clean.length === 0) {
+      if (current.length > 0) {
+        entities.push(current.join(" "));
+        current = [];
+      }
+      continue;
+    }
+    const isCap = /^\p{Lu}/u.test(clean);
+    const isStop = STOPWORDS.has(clean.toLowerCase());
+    if (isCap && !isStop && clean.length >= 3) {
+      current.push(clean);
+    } else {
+      if (current.length > 0) {
+        entities.push(current.join(" "));
+        current = [];
+      }
+    }
+  }
+  if (current.length > 0) entities.push(current.join(" "));
+  return entities.filter((e) => e.length >= 3);
+}
+
+async function buildArticleSpecificQueries(
+  maxQueries = 8
+): Promise<Array<{ query: string; feeds: string[] }>> {
+  const admin = getSupabaseAdmin();
+  const cutoff = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
+  const { data } = await admin
+    .from("articles")
+    .select("title")
+    .ilike("topic", "Kompas%")
+    .gte("scraped_at", cutoff)
+    .order("scraped_at", { ascending: false })
+    .limit(60);
+
+  const seen = new Set<string>();
+  const queries: Array<{ query: string; feeds: string[] }> = [];
+  for (const row of (data || []) as Array<{ title: string }>) {
+    const entities = extractHeadlineEntities(row.title);
+    if (entities.length < 1) continue;
+    // Prefer a 2-entity phrase; fall back to the single strongest entity.
+    const phrase =
+      entities.length >= 2 ? `${entities[0]} ${entities[1]}` : entities[0];
+    const key = phrase.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const q = `"${phrase}" Kompas`;
+    queries.push({ query: q, feeds: [googleNewsRss(q)] });
+    if (queries.length >= maxQueries) break;
+  }
+  return queries;
+}
+
+export async function buildWatchQueries(): Promise<
+  Array<{ query: string; feeds: string[] }>
+> {
   const triggerGroup = `(${CONTROVERSY_TRIGGERS.map((t) => `"${t}"`).join(" OR ")})`;
   const brands = ["Kompas", "Harian Kompas", "Kompas.com", "Kompas.id"];
-
   const queries: Array<{ query: string; feeds: string[] }> = [];
 
+  // 1. Brand × trigger-group Google News queries (broad controversy catch-all)
   for (const brand of brands) {
     const q = `"${brand}" ${triggerGroup}`;
+    queries.push({ query: q, feeds: [googleNewsRss(q)] });
+  }
+
+  // 2. Per-article Google News queries derived from recent Kompas headlines
+  const articleQueries = await buildArticleSpecificQueries();
+  queries.push(...articleQueries);
+
+  // 3. Reddit search + subreddit direct feeds
+  queries.push({
+    query: "Kompas Indonesia (reddit search)",
+    feeds: [redditSearchRss("Kompas Indonesia")],
+  });
+  for (const sub of ["indonesia", "indonesian"]) {
     queries.push({
-      query: q,
-      feeds: [googleNewsRss(q)],
+      query: `r/${sub}`,
+      feeds: [subredditRss(sub)],
     });
   }
 
+  // 4. Nitter X/Twitter search (best-effort; instance may be down)
   queries.push({
-    query: "Kompas Indonesia",
-    feeds: [redditSearchRss("Kompas Indonesia")],
+    query: "Kompas (X/Twitter via Nitter)",
+    feeds: [nitterSearchRss(`Kompas ${CONTROVERSY_TRIGGERS.slice(0, 5).join(" OR ")}`)],
   });
 
   return queries;
@@ -134,20 +230,23 @@ export interface ScanSummary {
   clustersNew: number;
 }
 
+function platformFor(feedUrl: string): string {
+  if (feedUrl.includes("reddit.com")) return "reddit";
+  if (feedUrl.includes("nitter")) return "twitter";
+  return "google_news";
+}
+
 export async function runAmplificationScan(
   onProgress?: (msg: string) => void
 ): Promise<ScanSummary> {
-  const watches = buildWatchQueries();
+  const watches = await buildWatchQueries();
   const raw: RawMention[] = [];
 
   onProgress?.(`Fetching ${watches.length} watch queries`);
 
   for (const w of watches) {
     for (const feedUrl of w.feeds) {
-      const platform = feedUrl.includes("reddit.com")
-        ? "reddit"
-        : "google_news";
-      const items = await fetchFeed(feedUrl, platform, w.query);
+      const items = await fetchFeed(feedUrl, platformFor(feedUrl), w.query);
       raw.push(...items);
       await new Promise((r) => setTimeout(r, 400));
     }
