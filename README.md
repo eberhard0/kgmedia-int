@@ -1,36 +1,110 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# KG Media Internal Prediction Algo
 
-## Getting Started
+Internal monitoring dashboard for Kompas Gramedia — tracks news, social, and forum
+signal; alerts when external coverage of a Kompas article starts amplifying as a
+controversy.
 
-First, run the development server:
+- Live: https://kgmedia-int.vercel.app
+- Stack: Next.js 16 (App Router) · Supabase · Vercel (Hobby plan)
+
+## Surfaces
+
+- `/` — topic radar with per-publication sentiment, trend, and headline panels
+- `/amplification` — controversy watch; red-blinking alert when 3+ external
+  sources mention the same Kompas-related topic within 24h
+- `/changelog`, `/faq`
+
+## Local development
 
 ```bash
+npm install
+cp .env.local.example .env.local   # then fill in Supabase credentials
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Required environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service-role key (writes) |
+| `USE_FINBERT` *(optional)* | `true` to enable FinBERT/IndoBERT sentiment via Hugging Face |
+| `HF_TOKEN` *(optional)* | Hugging Face API token for FinBERT/IndoBERT |
 
-## Learn More
+## Optional paid integrations
 
-To learn more about Next.js, take a look at the following resources:
+The amplification pipeline ships with dormant Apify + OpenAI modules
+(`lib/apify.ts`, `lib/embeddings.ts`). They activate automatically when the
+following env vars are present — no code change or redeploy triggered from
+code is needed, just add the vars and the next scan picks them up.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Variable | Purpose | Cost |
+| --- | --- | --- |
+| `APIFY_TOKEN` | Enables TikTok / Instagram / Threads / Facebook / X post scraping via Apify actors | ~$49/mo (Starter plan includes $49 credit) |
+| `OPENAI_API_KEY` | Replaces Jaccard keyword clustering with semantic cosine similarity via `text-embedding-3-small` | ~$1/mo at this scale |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### How to add them
 
-## Deploy on Vercel
+#### 1. Apify
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Sign up: https://apify.com/sign-up
+2. Pick the **Starter** plan ($49/mo): https://apify.com/pricing
+3. Copy your personal API token: https://console.apify.com/account/integrations
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Actors used (called by token, no install needed):
+- `apify/instagram-scraper`
+- `clockworks/free-tiktok-scraper`
+- `curious-coder/threads-scraper`
+- `apify/facebook-posts-scraper`
+- `apidojo/twitter-scraper-lite`
+
+#### 2. OpenAI
+
+1. Log in / sign up: https://platform.openai.com/signup
+2. Add a billing method: https://platform.openai.com/account/billing
+3. Create an API key: https://platform.openai.com/api-keys
+4. Recommended: set a $5/mo spending cap at
+   https://platform.openai.com/settings/organization/limits
+
+#### 3. Add both to Vercel
+
+Via dashboard — https://vercel.com/eberhard0s-projects/kgmedia-int/settings/environment-variables —
+add for **Production** (and Preview if desired):
+
+- `APIFY_TOKEN`
+- `OPENAI_API_KEY`
+
+Or via CLI:
+
+```bash
+vercel env add APIFY_TOKEN production
+vercel env add OPENAI_API_KEY production
+```
+
+After the next function cold start, `Scan Now` on `/amplification` will emit
+progress messages including `Apify enabled — fetching TikTok/IG/Threads/FB/X
+posts` and the clustering step will use semantic embeddings.
+
+## Database schema
+
+`supabase-schema.sql` at repo root contains all DDL. When the schema changes,
+paste the new statements into the Supabase SQL Editor manually — there is no
+migration pipeline. After DDL, run `NOTIFY pgrst, 'reload schema';` to force
+PostgREST to pick up new tables immediately.
+
+## Crons
+
+`vercel.json` defines:
+
+- `/api/scan` — daily at 06:00 UTC (topic radar)
+- `/api/amplification/scan` — daily at 06:30 UTC (controversy watch)
+
+Hobby plan is limited to one invocation per cron per day. For sub-daily
+refreshes, use the **Scan Now** button on the relevant page.
+
+## License
+
+Internal KG Media tool.
