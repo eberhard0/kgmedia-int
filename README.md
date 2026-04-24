@@ -4,8 +4,10 @@ Internal monitoring dashboard for Kompas Gramedia — tracks news, social, and f
 signal; alerts when external coverage of a Kompas article starts amplifying as a
 controversy.
 
-- Live: https://kgmedia-int.vercel.app
-- Stack: Next.js 16 (App Router) · Supabase · Vercel (Hobby plan)
+- Canonical repo: https://github.com/pt-kompas-media-nusantara/prediction-algo
+- Prototype deployment (to be retired after Azure migration): https://kgmedia-int.vercel.app
+- Reference stack used during prototype: Next.js 16 (App Router) · Supabase · Vercel (Hobby plan)
+- Production target: **Azure** via CI/CD — see [DEPLOYMENT.md](./DEPLOYMENT.md) for infra requirements, Azure equivalents, sample workflows, and a pre-migration checklist.
 
 ## Surfaces
 
