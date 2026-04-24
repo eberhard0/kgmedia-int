@@ -1,0 +1,26 @@
+name:  Build and push on development
+ 
+on:
+  push:
+    branches: [master]
+
+env:
+  DEPLOYMENT_PRD: kgmedia-prediction-algo
+
+jobs:
+  build-and-push:
+    runs-on: [node20] 
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+          
+    - name: Login, Build & Push Image to ACR
+      uses: azure/docker-login@v1
+      with:
+        login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+    - run: |
+        docker build . -t ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.DEPLOYMENT_PRD }}:${{ github.sha }} -f Dockerfile
+        docker push ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.DEPLOYMENT_PRD }}:${{ github.sha }}
