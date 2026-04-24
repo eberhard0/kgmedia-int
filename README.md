@@ -7,7 +7,11 @@ controversy.
 - Canonical repo: https://github.com/pt-kompas-media-nusantara/prediction-algo
 - Prototype deployment (to be retired after Azure migration): https://kgmedia-int.vercel.app
 - Reference stack used during prototype: Next.js 16 (App Router) · Supabase · Vercel (Hobby plan)
-- Production target: **Azure** via CI/CD — see [DEPLOYMENT.md](./DEPLOYMENT.md) for infra requirements, Azure equivalents, sample workflows, and a pre-migration checklist.
+- Production target: cloud via CI/CD — pick the guide that matches the chosen cloud:
+  - **Azure** → [DEPLOYMENT.md](./DEPLOYMENT.md)
+  - **AWS** → [DEPLOYMENT-AWS.md](./DEPLOYMENT-AWS.md)
+
+  Both cover runtime requirements, database migration paths, cron equivalents, hosting choices, env var storage, sample CI/CD workflows, and a pre-migration checklist.
 
 ## Surfaces
 
