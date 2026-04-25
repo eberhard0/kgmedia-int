@@ -552,10 +552,8 @@ export interface AmplificationStats {
 const TRACKED_PLATFORMS = [
   "google_news",
   "reddit",
-  "twitter",
   "tiktok",
   "instagram",
-  "threads",
   "facebook",
 ];
 const TIMELINE_HOURS = 24;

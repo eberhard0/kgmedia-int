@@ -309,11 +309,16 @@ export default function FAQ() {
           <p>
             Free tier sources: Google News RSS (45 Indonesian + English controversy
             keywords) and Reddit search across r/indonesia, r/indonesian, and
-            general subreddits. When an{" "}
-            <code className="bg-slate-700 px-1 rounded">APIFY_TOKEN</code> is
-            configured, the system also pulls TikTok, Instagram, Threads, Facebook,
-            and X/Twitter posts for the same entities. Without Apify, those tiles
-            stay at zero.
+            general subreddits. With an{" "}
+            <code className="bg-slate-700 px-1 rounded">APIFY_TOKEN</code> the
+            system also pulls TikTok, Instagram, and Facebook posts for the same
+            entities. X / Twitter and Threads are{" "}
+            <span className="text-slate-400 italic">not currently covered</span>{" "}
+            — the only viable Apify Twitter actor is paid pay-per-use (and would
+            need a separate rental on top of Starter), and there is no maintained
+            free Threads actor on Apify at all. Wire those up by re-enabling the
+            calls in <code className="bg-slate-700 px-1 rounded">lib/apify.ts</code>{" "}
+            after renting a working actor.
           </p>
           <p>
             Two optional AI providers improve quality when their keys are present:{" "}
@@ -335,7 +340,7 @@ export default function FAQ() {
       <div className="mt-12 text-center text-xs text-slate-600">
         &copy; Eberhard Ojong 2026 | KG Media Internal Prediction Algo{" "}
         <a href="/changelog" className="text-blue-400 hover:text-blue-300 underline">
-          v1.1.4
+          v1.1.5
         </a>{" "}
         | KG Media News
       </div>

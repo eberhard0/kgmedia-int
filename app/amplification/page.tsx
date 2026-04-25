@@ -133,10 +133,8 @@ const PLATFORM_META: Record<string, PlatformMeta> = {
 const PLATFORM_ORDER = [
   "google_news",
   "reddit",
-  "twitter",
   "tiktok",
   "instagram",
-  "threads",
   "facebook",
 ];
 

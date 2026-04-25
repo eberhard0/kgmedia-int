@@ -18,6 +18,30 @@ export default function Changelog() {
       <div className="space-y-6">
         <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
           <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.1.5</span>
+            <span className="text-xs text-slate-500">April 25, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Apify integration cleanup. Diagnosed three actors that had been
+            silently returning zero: the Threads scraper had been delisted (404),
+            Instagram&apos;s input schema had changed (400 on the old{" "}
+            <code className="bg-slate-700 px-1 rounded">search</code>+{" "}
+            <code className="bg-slate-700 px-1 rounded">searchType</code> shape),
+            and the Twitter actor was returning{" "}
+            <code className="bg-slate-700 px-1 rounded">{"{demo:true}"}</code>{" "}
+            placeholders because it&apos;s now a paid pay-per-use rental.
+            Rewrote Instagram to use{" "}
+            <code className="bg-slate-700 px-1 rounded">directUrls</code> over
+            hashtag pages (now returning real posts), and removed Threads + X /
+            Twitter from the active orchestrator and platform tiles to stop
+            wasting Apify compute. Both functions stay in{" "}
+            <code className="bg-slate-700 px-1 rounded">lib/apify.ts</code> for
+            easy re-enable if a working actor becomes available.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
             <span className="text-blue-400 font-bold">v1.1.4</span>
             <span className="text-xs text-slate-500">April 25, 2026</span>
           </div>
