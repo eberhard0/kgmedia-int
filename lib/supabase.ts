@@ -69,6 +69,8 @@ export interface AmplificationMention {
   tokens: string[];
   trigger_query: string;
   cluster_id: number | null;
+  kompas_article_id?: number | null;
+  triggered_entity?: string;
 }
 
 export interface AmplificationCluster {
@@ -80,4 +82,6 @@ export interface AmplificationCluster {
   source_count: number;
   status: string;
   updated_at?: string;
+  kompas_article_id?: number | null;
+  triggered_entity?: string;
 }

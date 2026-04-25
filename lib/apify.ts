@@ -11,6 +11,13 @@ export interface ApifyRawMention {
   snippet: string;
   published_at: string | null;
   trigger_query: string;
+  kompas_article_id?: number | null;
+  triggered_entity?: string;
+}
+
+export interface EntityWatchInput {
+  entity: string;
+  articleId: number;
 }
 
 export function isApifyEnabled(): boolean {
@@ -201,6 +208,7 @@ export async function searchTwitter(
 }
 
 // ---------- Orchestrator ----------
+// Brand-only orchestrator (kept for backwards compatibility / testing)
 export async function runAllApifySearches(
   keywords: string[],
   facebookPages: string[]
@@ -212,6 +220,68 @@ export async function runAllApifySearches(
     searchThreads(keywords).catch(() => []),
     searchFacebook(facebookPages).catch(() => []),
     searchTwitter(keywords.join(" OR ")).catch(() => []),
+  ]);
+  return results.flat();
+}
+
+// Entity-driven orchestrator. For each entity extracted from a Kompas
+// article, fan out social searches across all platforms; preserves the
+// article + entity attribution on every returned mention.
+export async function runEntityApifySearches(
+  watches: EntityWatchInput[],
+  facebookPages: string[],
+  brandKeywords: string[] = ["hariankompas", "kompascom", "kompastv", "kompasiana", "kompas.com", "kompas.id"]
+): Promise<ApifyRawMention[]> {
+  if (!isApifyEnabled()) return [];
+
+  // Brand-anchored search: each unique entity, combined with brand context
+  const brandJoined = brandKeywords.join(" OR ");
+  const allEntities = Array.from(new Set(watches.map((w) => w.entity))).slice(0, 20);
+  const entityToArticleId = new Map<string, number>();
+  for (const w of watches) {
+    if (!entityToArticleId.has(w.entity)) {
+      entityToArticleId.set(w.entity, w.articleId);
+    }
+  }
+
+  // For per-platform searches we batch entities into single calls where
+  // the actor supports multi-keyword input, then attribute each result
+  // back to the entity whose name appears in the post text.
+  const tagPerEntity = (mentions: ApifyRawMention[]): ApifyRawMention[] => {
+    return mentions.map((m) => {
+      const haystack = `${m.title} ${m.snippet}`.toLowerCase();
+      let bestEntity = "";
+      let bestArticleId: number | null = null;
+      for (const e of allEntities) {
+        if (haystack.includes(e.toLowerCase())) {
+          bestEntity = e;
+          bestArticleId = entityToArticleId.get(e) ?? null;
+          break;
+        }
+      }
+      return {
+        ...m,
+        triggered_entity: bestEntity,
+        kompas_article_id: bestArticleId,
+      };
+    });
+  };
+
+  const tikTokKeywords = [...brandKeywords, ...allEntities];
+  const igKeywords = [...brandKeywords, ...allEntities];
+  const twitterQuery = allEntities.length
+    ? `(${allEntities.map((e) => `"${e}"`).join(" OR ")}) (${brandJoined})`
+    : brandJoined;
+  const threadsKeywords = allEntities.length
+    ? [...brandKeywords, ...allEntities]
+    : brandKeywords;
+
+  const results = await Promise.all([
+    searchTikTok(tikTokKeywords).then(tagPerEntity).catch(() => []),
+    searchInstagram(igKeywords).then(tagPerEntity).catch(() => []),
+    searchThreads(threadsKeywords).then(tagPerEntity).catch(() => []),
+    searchFacebook(facebookPages).then(tagPerEntity).catch(() => []),
+    searchTwitter(twitterQuery).then(tagPerEntity).catch(() => []),
   ]);
   return results.flat();
 }

@@ -4,13 +4,14 @@ import {
   type AmplificationMention,
   type AmplificationCluster,
 } from "./supabase";
-import { isApifyEnabled, runAllApifySearches } from "./apify";
+import { isApifyEnabled, runEntityApifySearches } from "./apify";
 import {
   isEmbeddingsEnabled,
   embedBatch,
   cosineSim,
   SEMANTIC_CLUSTER_THRESHOLD,
 } from "./embeddings";
+import { extractEntities } from "./entities";
 
 const parser = new Parser({
   timeout: 15000,
@@ -100,73 +101,77 @@ function nitterSearchRss(query: string): string {
   return `${NITTER_INSTANCE}/search/rss?f=tweets&q=${encodeURIComponent(query)}`;
 }
 
-// Pull consecutive capitalized tokens out of a headline — covers most named
-// entities (people, orgs, places) without a full NER model.
-export function extractHeadlineEntities(title: string): string[] {
-  const tokens = title.split(/\s+/);
-  const entities: string[] = [];
-  let current: string[] = [];
-  for (const t of tokens) {
-    const clean = t.replace(/[^\p{L}\p{N}]/gu, "");
-    if (clean.length === 0) {
-      if (current.length > 0) {
-        entities.push(current.join(" "));
-        current = [];
-      }
-      continue;
-    }
-    const isCap = /^\p{Lu}/u.test(clean);
-    const isStop = STOPWORDS.has(clean.toLowerCase());
-    if (isCap && !isStop && clean.length >= 3) {
-      current.push(clean);
-    } else {
-      if (current.length > 0) {
-        entities.push(current.join(" "));
-        current = [];
-      }
-    }
-  }
-  if (current.length > 0) entities.push(current.join(" "));
-  return entities.filter((e) => e.length >= 3);
+// Brand-scoped Kompas topics whose articles drive the entity watchlist.
+const KOMPAS_BRAND_TOPIC_PREFIXES = [
+  "Kompas.id",
+  "Kompas.com",
+  "Kompas TV",
+  "Kontan",
+];
+
+interface KompasArticleRef {
+  id: number;
+  title: string;
+  url: string;
+  topic: string;
 }
 
-async function buildArticleSpecificQueries(
-  maxQueries = 8
-): Promise<Array<{ query: string; feeds: string[] }>> {
+interface EntityWatch {
+  entity: string;
+  article: KompasArticleRef;
+  feeds: string[];
+}
+
+async function getRecentKompasArticles(): Promise<KompasArticleRef[]> {
   const admin = getSupabaseAdmin();
   const cutoff = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
   const { data } = await admin
     .from("articles")
-    .select("title")
-    .ilike("topic", "Kompas%")
+    .select("id,title,url,topic")
+    .or(
+      KOMPAS_BRAND_TOPIC_PREFIXES.map((p) => `topic.ilike.${p}%`).join(",")
+    )
     .gte("scraped_at", cutoff)
     .order("scraped_at", { ascending: false })
     .limit(60);
-
-  const seen = new Set<string>();
-  const queries: Array<{ query: string; feeds: string[] }> = [];
-  for (const row of (data || []) as Array<{ title: string }>) {
-    const entities = extractHeadlineEntities(row.title);
-    if (entities.length < 1) continue;
-    // Prefer a 2-entity phrase; fall back to the single strongest entity.
-    const phrase =
-      entities.length >= 2 ? `${entities[0]} ${entities[1]}` : entities[0];
-    const key = phrase.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const q = `"${phrase}" Kompas`;
-    queries.push({ query: q, feeds: [googleNewsRss(q)] });
-    if (queries.length >= maxQueries) break;
-  }
-  return queries;
+  return (data || []) as KompasArticleRef[];
 }
 
-export async function buildWatchQueries(): Promise<
-  Array<{ query: string; feeds: string[] }>
-> {
+async function buildEntityWatches(
+  maxEntities = 30
+): Promise<EntityWatch[]> {
+  const articles = await getRecentKompasArticles();
+  const seen = new Set<string>();
+  const watches: EntityWatch[] = [];
+  for (const article of articles) {
+    const entities = await extractEntities(article.title);
+    for (const entity of entities) {
+      const key = entity.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const q = `"${entity}" Kompas`;
+      watches.push({
+        entity,
+        article,
+        feeds: [googleNewsRss(q), redditSearchRss(`${entity} Kompas`)],
+      });
+      if (watches.length >= maxEntities) return watches;
+    }
+  }
+  return watches;
+}
+
+export interface WatchTarget {
+  query: string;
+  feeds: string[];
+  article?: KompasArticleRef;
+  entity?: string;
+}
+
+export async function buildWatchQueries(): Promise<WatchTarget[]> {
   const triggerGroup = `(${CONTROVERSY_TRIGGERS.map((t) => `"${t}"`).join(" OR ")})`;
-  const brands = ["Kompas", "Harian Kompas", "Kompas.com", "Kompas.id"];
-  const queries: Array<{ query: string; feeds: string[] }> = [];
+  const brands = ["Kompas", "Harian Kompas", "Kompas.com", "Kompas.id", "Kompas TV", "Kontan"];
+  const queries: WatchTarget[] = [];
 
   // 1. Brand × trigger-group Google News queries (broad controversy catch-all)
   for (const brand of brands) {
@@ -174,9 +179,16 @@ export async function buildWatchQueries(): Promise<
     queries.push({ query: q, feeds: [googleNewsRss(q)] });
   }
 
-  // 2. Per-article Google News queries derived from recent Kompas headlines
-  const articleQueries = await buildArticleSpecificQueries();
-  queries.push(...articleQueries);
+  // 2. Per-entity searches derived from recent Kompas articles
+  const entityWatches = await buildEntityWatches();
+  for (const w of entityWatches) {
+    queries.push({
+      query: `"${w.entity}" Kompas`,
+      feeds: w.feeds,
+      article: w.article,
+      entity: w.entity,
+    });
+  }
 
   // 3. Reddit search + subreddit direct feeds
   queries.push({
@@ -207,12 +219,16 @@ interface RawMention {
   snippet: string;
   published_at: string | null;
   trigger_query: string;
+  kompas_article_id: number | null;
+  triggered_entity: string;
 }
 
 async function fetchFeed(
   feedUrl: string,
   platform: string,
-  trigger: string
+  trigger: string,
+  articleId: number | null = null,
+  entity = ""
 ): Promise<RawMention[]> {
   try {
     const feed = await parser.parseURL(feedUrl);
@@ -224,6 +240,8 @@ async function fetchFeed(
       snippet: (item.contentSnippet || item.content || "").slice(0, 500),
       published_at: item.isoDate || null,
       trigger_query: trigger,
+      kompas_article_id: articleId,
+      triggered_entity: entity,
     }));
   } catch {
     return [];
@@ -253,7 +271,13 @@ export async function runAmplificationScan(
 
   for (const w of watches) {
     for (const feedUrl of w.feeds) {
-      const items = await fetchFeed(feedUrl, platformFor(feedUrl), w.query);
+      const items = await fetchFeed(
+        feedUrl,
+        platformFor(feedUrl),
+        w.query,
+        w.article?.id ?? null,
+        w.entity ?? ""
+      );
       raw.push(...items);
       await new Promise((r) => setTimeout(r, 400));
     }
@@ -261,19 +285,30 @@ export async function runAmplificationScan(
 
   if (isApifyEnabled()) {
     onProgress?.("Apify enabled — fetching TikTok/IG/Threads/FB/X posts");
-    const socialKeywords = ["hariankompas", "kompascom", "kompastv", "kompasiana"];
+    const entityWatches = watches
+      .filter((w) => w.entity && w.article)
+      .map((w) => ({
+        entity: w.entity!,
+        articleId: w.article!.id,
+      }));
     const facebookPages = [
       "https://www.facebook.com/hariankompas",
       "https://www.facebook.com/KOMPAScom",
       "https://www.facebook.com/kompastv",
       "https://www.facebook.com/KOMPASIANAdotcom",
     ];
-    const apifyMentions = await runAllApifySearches(
-      socialKeywords,
+    const apifyMentions = await runEntityApifySearches(
+      entityWatches,
       facebookPages
     );
     onProgress?.(`Apify returned ${apifyMentions.length} social posts`);
-    raw.push(...apifyMentions);
+    raw.push(
+      ...apifyMentions.map((m) => ({
+        ...m,
+        kompas_article_id: m.kompas_article_id ?? null,
+        triggered_entity: m.triggered_entity ?? "",
+      }))
+    );
   }
 
   onProgress?.(`Fetched ${raw.length} raw mentions`);
@@ -304,6 +339,8 @@ export async function runAmplificationScan(
       tokens: tokenize(`${m.title} ${m.snippet}`).slice(0, 40),
       trigger_query: m.trigger_query,
       cluster_id: null,
+      kompas_article_id: m.kompas_article_id,
+      triggered_entity: m.triggered_entity,
     });
   }
 
@@ -437,6 +474,29 @@ async function reclusterRecent(): Promise<{
     const lastSeen = times[times.length - 1];
     const sourceCount = new Set(g.map((m) => m.source)).size;
 
+    const articleCounts = new Map<number, number>();
+    const entityCounts = new Map<string, number>();
+    for (const m of g) {
+      if (m.kompas_article_id) {
+        articleCounts.set(
+          m.kompas_article_id,
+          (articleCounts.get(m.kompas_article_id) || 0) + 1
+        );
+      }
+      if (m.triggered_entity) {
+        entityCounts.set(
+          m.triggered_entity,
+          (entityCounts.get(m.triggered_entity) || 0) + 1
+        );
+      }
+    }
+    const dominantArticle = [...articleCounts.entries()].sort(
+      (a, b) => b[1] - a[1]
+    )[0]?.[0] ?? null;
+    const dominantEntity = [...entityCounts.entries()].sort(
+      (a, b) => b[1] - a[1]
+    )[0]?.[0] ?? "";
+
     const cluster: Omit<AmplificationCluster, "id"> = {
       keywords: topTokens,
       first_seen: firstSeen,
@@ -444,6 +504,8 @@ async function reclusterRecent(): Promise<{
       mention_count: g.length,
       source_count: sourceCount,
       status: "active",
+      kompas_article_id: dominantArticle,
+      triggered_entity: dominantEntity,
     };
 
     const { data } = await admin
@@ -482,9 +544,12 @@ export async function getRecentMentions(limit = 50): Promise<AmplificationMentio
   return (data || []) as AmplificationMention[];
 }
 
-export async function getActiveClusters(): Promise<
-  Array<AmplificationCluster & { mentions: AmplificationMention[] }>
-> {
+export interface ClusterWithContext extends AmplificationCluster {
+  mentions: AmplificationMention[];
+  source_article: { id: number; title: string; url: string; topic: string } | null;
+}
+
+export async function getActiveClusters(): Promise<ClusterWithContext[]> {
   const admin = getSupabaseAdmin();
   const { data: clusters } = await admin
     .from("amplification_clusters")
@@ -495,7 +560,9 @@ export async function getActiveClusters(): Promise<
   const list = (clusters || []) as AmplificationCluster[];
   if (list.length === 0) return [];
 
-  const ids = list.map((c) => c.id).filter((x): x is number => typeof x === "number");
+  const ids = list
+    .map((c) => c.id)
+    .filter((x): x is number => typeof x === "number");
   const { data: mentions } = await admin
     .from("amplification_mentions")
     .select("*")
@@ -510,8 +577,37 @@ export async function getActiveClusters(): Promise<
     byCluster.set(m.cluster_id, arr);
   }
 
+  const articleIds = Array.from(
+    new Set(
+      list
+        .map((c) => c.kompas_article_id)
+        .filter((x): x is number => typeof x === "number")
+    )
+  );
+  const articleMap = new Map<
+    number,
+    { id: number; title: string; url: string; topic: string }
+  >();
+  if (articleIds.length > 0) {
+    const { data: articles } = await admin
+      .from("articles")
+      .select("id,title,url,topic")
+      .in("id", articleIds);
+    for (const a of (articles || []) as Array<{
+      id: number;
+      title: string;
+      url: string;
+      topic: string;
+    }>) {
+      articleMap.set(a.id, a);
+    }
+  }
+
   return list.map((c) => ({
     ...c,
     mentions: (c.id ? byCluster.get(c.id) : undefined) || [],
+    source_article: c.kompas_article_id
+      ? articleMap.get(c.kompas_article_id) || null
+      : null,
   }));
 }

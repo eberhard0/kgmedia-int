@@ -12,6 +12,15 @@ interface Mention {
   published_at: string | null;
   scraped_at: string;
   trigger_query: string;
+  kompas_article_id?: number | null;
+  triggered_entity?: string;
+}
+
+interface SourceArticle {
+  id: number;
+  title: string;
+  url: string;
+  topic: string;
 }
 
 interface Cluster {
@@ -23,6 +32,8 @@ interface Cluster {
   source_count: number;
   status: string;
   mentions: Mention[];
+  triggered_entity?: string;
+  source_article: SourceArticle | null;
 }
 
 interface ApiResponse {
@@ -240,6 +251,29 @@ export default function Amplification() {
                   className="w-full text-left p-4 flex items-start justify-between gap-4 hover:bg-slate-800/50 transition-colors"
                 >
                   <div className="flex-1">
+                    {c.triggered_entity && (
+                      <div className="text-xs uppercase tracking-wider text-red-400 mb-1">
+                        Triggering entity:{" "}
+                        <span className="font-bold">{c.triggered_entity}</span>
+                      </div>
+                    )}
+                    {c.source_article && (
+                      <div className="text-xs text-slate-300 mb-2">
+                        About:{" "}
+                        <a
+                          href={c.source_article.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-blue-400 hover:text-blue-300 underline"
+                        >
+                          {c.source_article.title}
+                        </a>{" "}
+                        <span className="text-slate-500">
+                          ({c.source_article.topic})
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2 flex-wrap mb-2">
                       {c.keywords.slice(0, 6).map((k) => (
                         <span
@@ -275,10 +309,15 @@ export default function Amplification() {
                         >
                           {m.title}
                         </a>
-                        <div className="text-xs text-slate-500 flex flex-wrap gap-2">
+                        <div className="text-xs text-slate-500 flex flex-wrap gap-2 items-center">
                           <span className="px-1.5 py-0.5 rounded bg-slate-700/50 text-slate-300 font-mono">
                             {m.platform}
                           </span>
+                          {m.triggered_entity && (
+                            <span className="px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 font-mono">
+                              entity: {m.triggered_entity}
+                            </span>
+                          )}
                           <span>{m.source}</span>
                           <span>·</span>
                           <span>
