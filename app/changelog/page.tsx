@@ -18,6 +18,23 @@ export default function Changelog() {
       <div className="space-y-6">
         <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
           <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.1.3</span>
+            <span className="text-xs text-slate-500">April 25, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Switched the optional AI integrations from OpenAI to Claude (entity
+            extraction, model claude-haiku-4-5) and Voyage AI (semantic clustering,
+            model voyage-3-lite). Claude produces cleaner Indonesian-language
+            entity names; Voyage handles multilingual embeddings cheaply and is
+            Anthropic&apos;s recommended embedding partner. Lowered the cluster
+            similarity threshold from 0.75 to 0.65 to match Voyage&apos;s scoring
+            distribution, and added input chunking so scans with 1000+ mentions
+            no longer exceed the embedding API&apos;s per-request batch cap.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
             <span className="text-blue-400 font-bold">v1.1.2</span>
             <span className="text-xs text-slate-500">April 25, 2026</span>
           </div>

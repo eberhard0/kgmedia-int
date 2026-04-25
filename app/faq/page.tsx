@@ -315,6 +315,19 @@ export default function FAQ() {
             and X/Twitter posts for the same entities. Without Apify, those tiles
             stay at zero.
           </p>
+          <p>
+            Two optional AI providers improve quality when their keys are present:{" "}
+            <code className="bg-slate-700 px-1 rounded">ANTHROPIC_API_KEY</code>{" "}
+            (Claude Haiku, used for entity extraction — produces clean
+            Indonesian-language entity names like &ldquo;Madinah&rdquo; or
+            &ldquo;Bandara Halim&rdquo; rather than capitalized-token noise) and{" "}
+            <code className="bg-slate-700 px-1 rounded">VOYAGE_API_KEY</code>{" "}
+            (Voyage AI <code className="bg-slate-700 px-1 rounded">voyage-3-lite</code>{" "}
+            embeddings, used for semantic clustering — catches &ldquo;same story
+            across platforms&rdquo; that keyword overlap would miss). Without these,
+            the system falls back to a heuristic entity extractor and Jaccard
+            keyword clustering — still functional, just slightly noisier.
+          </p>
         </div>
       </section>
 
@@ -322,7 +335,7 @@ export default function FAQ() {
       <div className="mt-12 text-center text-xs text-slate-600">
         &copy; Eberhard Ojong 2026 | KG Media Internal Prediction Algo{" "}
         <a href="/changelog" className="text-blue-400 hover:text-blue-300 underline">
-          v1.1.2
+          v1.1.3
         </a>{" "}
         | KG Media News
       </div>

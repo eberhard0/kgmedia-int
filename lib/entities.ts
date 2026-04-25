@@ -3,11 +3,11 @@
 //   - Heuristic (default, free): consecutive capitalized tokens with Indonesian
 //     stopword filtering. Works well on news headlines where most entities are
 //     proper-noun phrases.
-//   - AI (activated when OPENAI_API_KEY is set): a structured extraction call
-//     that catches entities the heuristic misses (lower-cased ministry names,
+//   - AI (activated when ANTHROPIC_API_KEY is set): a Claude Haiku call that
+//     catches entities the heuristic misses (lower-cased ministry names,
 //     multi-word place names, role-based references like "Dubes Rusia").
 
-import { isEmbeddingsEnabled } from "./embeddings";
+const CLAUDE_MODEL = "claude-haiku-4-5-20251001";
 
 const STOPWORDS = new Set([
   "dan", "di", "yang", "untuk", "dari", "dengan", "ini", "itu", "pada",
@@ -26,12 +26,9 @@ const STOPWORDS = new Set([
   "sports", "news", "sport", "premium", "terkini", "populer", "solusi",
 ]);
 
-// Reject entities that are too long (likely sentence fragments) or too short.
 const MAX_ENTITY_WORDS = 4;
 const MIN_ENTITY_WORDS = 1;
 
-// Common Indonesian title prefixes that imply an entity follows: keep them
-// part of the entity instead of dropping them.
 const TITLE_PREFIXES = new Set([
   "presiden", "menteri", "wakil", "ketua", "gubernur", "bupati", "walikota",
   "dubes", "duta", "kepala", "direktur", "komandan", "jenderal", "kapolri",
@@ -39,7 +36,7 @@ const TITLE_PREFIXES = new Set([
 ]);
 
 export function isAiEntityExtractionEnabled(): boolean {
-  return isEmbeddingsEnabled(); // OPENAI_API_KEY also drives entity extraction
+  return !!process.env.ANTHROPIC_API_KEY;
 }
 
 export function extractEntitiesHeuristic(text: string): string[] {
@@ -77,9 +74,6 @@ export function extractEntitiesHeuristic(text: string): string[] {
     const isTitlePrefix = TITLE_PREFIXES.has(lower);
     const isFirstWord = i === 0;
 
-    // First word is always capitalized in headlines — only include if it
-    // looks like a name (followed by another capitalized word) or is a
-    // title prefix.
     if (isFirstWord && isCap && !isTitlePrefix) {
       const next = tokens[i + 1]?.replace(/[^\p{L}\p{N}]/gu, "") || "";
       const nextCap = /^\p{Lu}/u.test(next);
@@ -97,7 +91,6 @@ export function extractEntitiesHeuristic(text: string): string[] {
   }
   flush();
 
-  // Dedup, preserving order
   const seen = new Set<string>();
   return entities.filter((e) => {
     const key = e.toLowerCase();
@@ -111,39 +104,55 @@ interface AiEntityResponse {
   entities: Array<{ name: string; type: string }>;
 }
 
+const SYSTEM_PROMPT = [
+  "Extract named entities from the given Indonesian or English news text.",
+  "Include people (full names), organizations, government bodies, companies,",
+  "foreign nations, ministries, and notable places. Skip generic terms",
+  "(e.g. \"Pemerintah\", \"Indonesia\", \"Jakarta\" alone).",
+  "Respond with strict JSON only — no markdown, no commentary.",
+  "Format: {\"entities\":[{\"name\":\"...\",\"type\":\"person|org|gov|company|country|ministry|place\"}]}",
+].join(" ");
+
 export async function extractEntitiesAI(text: string): Promise<string[]> {
   if (!isAiEntityExtractionEnabled()) return [];
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return [];
 
   try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content:
-              "Extract named entities from the Indonesian/English news text. Include: people (full names), organizations, government bodies, companies, foreign nations, ministries. Skip generic terms (e.g. 'Pemerintah', 'Indonesia', 'Jakarta' alone). Return strict JSON: {\"entities\":[{\"name\":\"...\",\"type\":\"person|org|gov|company|country|ministry\"}]}",
-          },
-          { role: "user", content: text.slice(0, 4000) },
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0,
+        model: CLAUDE_MODEL,
+        max_tokens: 512,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: text.slice(0, 4000) }],
       }),
     });
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.warn(`Claude entity extraction returned ${res.status}`);
+      return [];
+    }
     const data = (await res.json()) as {
-      choices: Array<{ message: { content: string } }>;
+      content: Array<{ type: string; text: string }>;
     };
-    const json = JSON.parse(data.choices[0].message.content) as AiEntityResponse;
-    return (json.entities || []).map((e) => e.name).filter((n) => n.length >= 3);
-  } catch {
+    const block = data.content.find((b) => b.type === "text");
+    if (!block) return [];
+    const cleaned = block.text
+      .trim()
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/```\s*$/i, "")
+      .trim();
+    const json = JSON.parse(cleaned) as AiEntityResponse;
+    return (json.entities || [])
+      .map((e) => e.name)
+      .filter((n) => typeof n === "string" && n.length >= 3);
+  } catch (err) {
+    console.warn("Claude entity extraction threw:", err);
     return [];
   }
 }
