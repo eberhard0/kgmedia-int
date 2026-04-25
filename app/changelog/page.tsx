@@ -18,6 +18,22 @@ export default function Changelog() {
       <div className="space-y-6">
         <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
           <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.1.6</span>
+            <span className="text-xs text-slate-500">April 25, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Added a per-platform breakdown line to the amplification scan SSE
+            (e.g. <code className="bg-slate-700 px-1 rounded">Apify breakdown: tiktok=300, facebook=58, instagram=42</code>),
+            so the &ldquo;Scan Now&rdquo; progress messages now show exactly which
+            actors contributed how many posts. Lets us spot a silent actor without
+            digging through server logs. Also corrected the stale &ldquo;fetching
+            TikTok/IG/Threads/FB/X posts&rdquo; message — Threads and X aren&apos;t
+            in the active orchestrator anymore.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
             <span className="text-blue-400 font-bold">v1.1.5</span>
             <span className="text-xs text-slate-500">April 25, 2026</span>
           </div>

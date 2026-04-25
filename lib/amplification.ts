@@ -284,7 +284,7 @@ export async function runAmplificationScan(
   }
 
   if (isApifyEnabled()) {
-    onProgress?.("Apify enabled — fetching TikTok/IG/Threads/FB/X posts");
+    onProgress?.("Apify enabled — fetching TikTok / Instagram / Facebook posts");
     const entityWatches = watches
       .filter((w) => w.entity && w.article)
       .map((w) => ({
@@ -302,6 +302,17 @@ export async function runAmplificationScan(
       facebookPages
     );
     onProgress?.(`Apify returned ${apifyMentions.length} social posts`);
+    if (apifyMentions.length > 0) {
+      const breakdown: Record<string, number> = {};
+      for (const m of apifyMentions) {
+        breakdown[m.platform] = (breakdown[m.platform] || 0) + 1;
+      }
+      const breakdownStr = Object.entries(breakdown)
+        .sort(([, a], [, b]) => b - a)
+        .map(([p, n]) => `${p}=${n}`)
+        .join(", ");
+      onProgress?.(`Apify breakdown: ${breakdownStr}`);
+    }
     raw.push(
       ...apifyMentions.map((m) => ({
         ...m,
