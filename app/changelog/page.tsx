@@ -18,6 +18,16 @@ export default function Changelog() {
       <div className="space-y-6">
         <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
           <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.1.2</span>
+            <span className="text-xs text-slate-500">April 25, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Amplification UX. Moved the pulsing red ring off the whole page and onto just the Active Clusters card grid, so it&apos;s clear which part is alerting. Added a 🔔 Mute alerts toggle (persisted per browser via localStorage) that silences the pulse on both the dashboard and the amplification page without hiding the alerts themselves. New FAQ section explains what an active cluster is, the 3 mentions / 3 sources threshold, how to read a cluster card, and what to do when one fires.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
             <span className="text-blue-400 font-bold">v1.1.1</span>
             <span className="text-xs text-slate-500">April 25, 2026</span>
           </div>

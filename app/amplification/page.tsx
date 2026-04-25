@@ -292,6 +292,19 @@ export default function Amplification() {
   const [scanning, setScanning] = useState(false);
   const [scanMessages, setScanMessages] = useState<string[]>([]);
   const [openCluster, setOpenCluster] = useState<number | null>(null);
+  const [muted, setMuted] = useState(false);
+
+  useEffect(() => {
+    setMuted(localStorage.getItem("kg_amp_mute_v1") === "1");
+  }, []);
+
+  const toggleMute = () => {
+    setMuted((m) => {
+      const next = !m;
+      localStorage.setItem("kg_amp_mute_v1", next ? "1" : "0");
+      return next;
+    });
+  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -350,14 +363,11 @@ export default function Amplification() {
   }, [fetchData]);
 
   const hasAlerts = (data?.alert_count || 0) > 0;
+  const pulse = hasAlerts && !muted;
   const stats = data?.stats;
 
   return (
-    <main
-      className={`min-h-screen p-4 md:p-8 max-w-6xl mx-auto ${
-        hasAlerts ? "ring-4 ring-red-500/60 animate-pulse" : ""
-      }`}
-    >
+    <main className="min-h-screen p-4 md:p-8 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div>
@@ -372,6 +382,15 @@ export default function Amplification() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {hasAlerts && (
+            <button
+              onClick={toggleMute}
+              title={muted ? "Alerts are muted — click to enable" : "Mute the pulsing alert"}
+              className="px-3 py-2 border border-slate-700 hover:border-slate-500 rounded text-sm text-slate-300 transition-colors cursor-pointer"
+            >
+              {muted ? "🔕 Muted" : "🔔 Mute alerts"}
+            </button>
+          )}
           <button
             onClick={triggerScan}
             disabled={scanning}
@@ -384,16 +403,24 @@ export default function Amplification() {
 
       {/* Alert banner */}
       {hasAlerts && (
-        <div className="mb-6 border border-red-500/60 bg-red-500/10 rounded-lg p-4 animate-pulse">
+        <div
+          className={`mb-6 border border-red-500/60 bg-red-500/10 rounded-lg p-4 ${
+            pulse ? "animate-pulse" : ""
+          }`}
+        >
           <div className="flex items-center gap-3">
             <span className="text-red-400 text-2xl">🚨</span>
-            <div>
+            <div className="flex-1">
               <div className="text-red-400 font-bold uppercase tracking-wider">
                 {data!.alert_count} Active Amplification Alert
                 {data!.alert_count > 1 ? "s" : ""}
               </div>
               <div className="text-xs text-slate-400 mt-1">
-                3+ sources reporting on the same Kompas-related topic.
+                3+ sources reporting on the same Kompas-related topic. See{" "}
+                <Link href="/faq#amplification" className="text-blue-400 hover:text-blue-300 underline">
+                  what this means
+                </Link>
+                .
               </div>
             </div>
           </div>
@@ -521,7 +548,13 @@ export default function Amplification() {
 
           {/* Cluster cards */}
           {hasAlerts ? (
-            <section className="mb-8">
+            <section
+              className={`mb-8 rounded-lg p-4 border ${
+                pulse
+                  ? "border-red-500/60 ring-2 ring-red-500/40 animate-pulse"
+                  : "border-red-500/30"
+              }`}
+            >
               <h2 className="text-sm uppercase tracking-wider text-red-400 font-bold mb-3">
                 Active Clusters · {data!.alert_count}
               </h2>

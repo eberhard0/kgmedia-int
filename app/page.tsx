@@ -66,6 +66,7 @@ export default function Dashboard() {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [scanning, setScanning] = useState(false);
   const [amplificationAlerts, setAmplificationAlerts] = useState(0);
+  const [muted, setMuted] = useState(false);
   const [scanProgress, setScanProgress] = useState<{
     current: number;
     total: number;
@@ -157,6 +158,15 @@ export default function Dashboard() {
   }, [fetchData]);
 
   useEffect(() => {
+    setMuted(localStorage.getItem("kg_amp_mute_v1") === "1");
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "kg_amp_mute_v1") setMuted(e.newValue === "1");
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     const load = async () => {
       try {
@@ -180,16 +190,16 @@ export default function Dashboard() {
     (t) => t.stats.trend === "CRITICAL" || t.stats.trend === "ESCALATING"
   );
 
+  const ampPulse = amplificationAlerts > 0 && !muted;
+
   return (
-    <main
-      className={`min-h-screen p-4 md:p-8 max-w-7xl mx-auto ${
-        amplificationAlerts > 0 ? "ring-4 ring-red-500/60 animate-pulse" : ""
-      }`}
-    >
+    <main className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto">
       {amplificationAlerts > 0 && (
         <a
           href="/amplification"
-          className="block mb-6 border-2 border-red-500 bg-red-500/20 rounded-lg p-4 animate-pulse hover:bg-red-500/30 transition-colors"
+          className={`block mb-6 border-2 border-red-500 bg-red-500/20 rounded-lg p-4 hover:bg-red-500/30 transition-colors ${
+            ampPulse ? "animate-pulse" : ""
+          }`}
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -520,7 +530,7 @@ export default function Dashboard() {
       <div className="mt-8 text-center text-xs text-slate-600">
         &copy; Eberhard Ojong 2026 | KG Media Internal Prediction Algo{" "}
         <a href="/changelog" className="text-blue-400 hover:text-blue-300 underline">
-          v1.1.1
+          v1.1.2
         </a>{" "}
         | Auto-refreshes every 30s | Cron scan daily |{" "}
         <a href="/amplification" className="text-blue-400 hover:text-blue-300 underline">

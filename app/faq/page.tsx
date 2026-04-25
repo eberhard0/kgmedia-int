@@ -1,10 +1,12 @@
+import Link from "next/link";
+
 export default function FAQ() {
   return (
     <main className="min-h-screen p-4 md:p-8 max-w-4xl mx-auto">
       <div className="mb-8">
-        <a href="/" className="text-blue-400 hover:text-blue-300 text-sm">
+        <Link href="/" className="text-blue-400 hover:text-blue-300 text-sm">
           &larr; Back to Dashboard
-        </a>
+        </Link>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight mt-4">
           <span className="text-blue-400">KG Media</span> Internal Prediction Algo — FAQ
         </h1>
@@ -199,11 +201,128 @@ export default function FAQ() {
         </div>
       </section>
 
+      {/* Amplification Watch */}
+      <section id="amplification" className="mb-10">
+        <h2 className="text-lg font-bold text-slate-200 mb-4 border-b border-slate-700 pb-2">
+          Amplification Watch
+        </h2>
+        <div className="text-sm text-slate-300 space-y-3">
+          <p>
+            The{" "}
+            <a href="/amplification" className="text-blue-400 hover:text-blue-300 underline">
+              Amplification page
+            </a>{" "}
+            answers a different question from the main dashboard. Instead of{" "}
+            <em>&ldquo;is sentiment turning negative on a topic?&rdquo;</em> it asks{" "}
+            <em>
+              &ldquo;is a Kompas story being picked up and discussed across multiple
+              external platforms simultaneously?&rdquo;
+            </em>{" "}
+            That cross-platform pickup is the early signal that a story is going
+            from a Kompas headline to a public controversy.
+          </p>
+
+          <h3 className="text-base font-semibold text-white mt-4">
+            What is an Active Cluster?
+          </h3>
+          <p>
+            A cluster is a group of mentions across Google News, Reddit, X / Twitter,
+            TikTok, Instagram, Threads, and Facebook that all appear to be about the
+            same Kompas-related story. An <span className="text-red-400 font-bold">active</span>{" "}
+            cluster means it has crossed both thresholds in the last 24 hours:
+          </p>
+          <div className="grid grid-cols-2 gap-3 my-3">
+            <div className="bg-red-500/10 border border-red-500/30 rounded p-3">
+              <div className="text-red-400 font-bold text-lg">≥ 3 mentions</div>
+              <div className="text-xs text-slate-400 mt-1">
+                The story is being talked about, not just mentioned once.
+              </div>
+            </div>
+            <div className="bg-red-500/10 border border-red-500/30 rounded p-3">
+              <div className="text-red-400 font-bold text-lg">≥ 3 distinct sources</div>
+              <div className="text-xs text-slate-400 mt-1">
+                Multiple independent platforms — not just three retweets of the same post.
+              </div>
+            </div>
+          </div>
+          <p>
+            Both must be true. A single Reddit thread with 20 comments is not a
+            cluster. Three independent posts on TikTok, Reddit, and X about the same
+            Kompas story is.
+          </p>
+
+          <h3 className="text-base font-semibold text-white mt-4">
+            How do I read a cluster card?
+          </h3>
+          <ul className="list-disc list-inside space-y-1 text-slate-300 ml-2">
+            <li>
+              <span className="text-white font-semibold">Entity</span> — the key
+              proper noun the cluster is built around (e.g., a person, a location, a
+              brand).
+            </li>
+            <li>
+              <span className="text-white font-semibold">About</span> — the Kompas
+              article that triggered the watch, with the topic it was filed under.
+            </li>
+            <li>
+              <span className="text-white font-semibold">Keyword chips</span> — the
+              shared tokens linking the mentions together. Useful for sanity-checking
+              whether the cluster is real or a false positive.
+            </li>
+            <li>
+              <span className="text-white font-semibold">N mentions · M sources</span>{" "}
+              — total volume and how many distinct platforms / outlets it&apos;s spread
+              across.
+            </li>
+            <li>
+              <span className="text-white font-semibold">+ details</span> — expand to
+              read every individual mention with its platform tag and a link to the
+              original post.
+            </li>
+          </ul>
+
+          <h3 className="text-base font-semibold text-white mt-4">
+            What does the pulsing red border mean?
+          </h3>
+          <p>
+            When at least one cluster is active, the Active Clusters section pulses
+            red and the dashboard shows a clickable banner. This is meant to be hard
+            to miss — by definition, an active cluster means a Kompas story has
+            already crossed the threshold for editorial attention. Click{" "}
+            <span className="text-slate-400 font-bold">🔔 Mute alerts</span> on the
+            Amplification page to silence the pulse for your browser; the alerts
+            stay visible but stop animating. Your preference is remembered locally.
+          </p>
+
+          <h3 className="text-base font-semibold text-white mt-4">
+            What should I do when a cluster fires?
+          </h3>
+          <ol className="list-decimal list-inside space-y-1 text-slate-300 ml-2">
+            <li>Open the cluster, read the linked Kompas article, and skim a few of the external mentions to understand the angle each platform is taking.</li>
+            <li>Decide whether the story warrants a follow-up, a clarification, or a desk note for editorial.</li>
+            <li>If the cluster looks like a false positive (off-topic mentions sharing only a generic keyword), no action — clusters auto-resolve when their volume drops below threshold within 24h.</li>
+          </ol>
+
+          <h3 className="text-base font-semibold text-white mt-4">
+            Where does the data come from?
+          </h3>
+          <p>
+            Free tier sources: Google News RSS (45 Indonesian + English controversy
+            keywords) and Reddit search across r/indonesia, r/indonesian, and
+            general subreddits. When an{" "}
+            <code className="bg-slate-700 px-1 rounded">APIFY_TOKEN</code> is
+            configured, the system also pulls TikTok, Instagram, Threads, Facebook,
+            and X/Twitter posts for the same entities. Without Apify, those tiles
+            stay at zero.
+          </p>
+        </div>
+      </section>
+
       {/* Footer */}
       <div className="mt-12 text-center text-xs text-slate-600">
         &copy; Eberhard Ojong 2026 | KG Media Internal Prediction Algo{" "}
         <a href="/changelog" className="text-blue-400 hover:text-blue-300 underline">
-          v1.0.9
+          v1.1.2
         </a>{" "}
         | KG Media News
       </div>
