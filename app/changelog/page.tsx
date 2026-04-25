@@ -16,6 +16,16 @@ export default function Changelog() {
       <div className="space-y-6">
         <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
           <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.0.10</span>
+            <span className="text-xs text-slate-500">April 25, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Headline panel clarity fix. Per-article sentiment scores are now labeled &quot;article&quot; so they are not confused with the topic slope. When a topic is ESCALATING or CRITICAL the sample headlines are sorted with the most negative ones first (most positive first when DE-ESCALATING) so the reason for the trend is immediately visible.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
             <span className="text-blue-400 font-bold">v1.0.9</span>
             <span className="text-xs text-slate-500">April 25, 2026</span>
           </div>

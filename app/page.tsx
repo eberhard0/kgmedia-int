@@ -459,30 +459,51 @@ export default function Dashboard() {
                 )}
                 <div className="space-y-1">
                   {t.stats.sample_headlines.length > 0 ? (
-                    t.stats.sample_headlines.slice(0, 4).map((h, i) => {
-                      const scoreColor =
-                        h.score > 0.05
-                          ? "text-green-500"
-                          : h.score < -0.05
-                            ? "text-red-500"
-                            : "text-slate-600";
-                      return (
-                        <div key={i} className="flex items-start gap-1.5 text-xs">
-                          <span className={`${scoreColor} shrink-0 w-10 text-right font-mono`}>
-                            {h.score > 0 ? "+" : ""}{h.score.toFixed(2)}
-                          </span>
-                          <a
-                            href={h.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-slate-400 hover:text-blue-400 underline truncate"
-                            title={h.title}
-                          >
-                            {h.title}
-                          </a>
-                        </div>
-                      );
-                    })
+                    <>
+                      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-500 pb-1">
+                        <span className="shrink-0 w-10 text-right">article</span>
+                        <span>headline</span>
+                      </div>
+                      {[...t.stats.sample_headlines]
+                        .sort((a, b) => {
+                          const trend = t.stats.trend;
+                          if (trend === "CRITICAL" || trend === "ESCALATING") {
+                            return a.score - b.score; // most negative first
+                          }
+                          if (trend === "DE-ESCALATING") {
+                            return b.score - a.score; // most positive first
+                          }
+                          return 0;
+                        })
+                        .slice(0, 4)
+                        .map((h, i) => {
+                          const scoreColor =
+                            h.score > 0.05
+                              ? "text-green-500"
+                              : h.score < -0.05
+                                ? "text-red-500"
+                                : "text-slate-600";
+                          return (
+                            <div key={i} className="flex items-start gap-1.5 text-xs">
+                              <span
+                                className={`${scoreColor} shrink-0 w-10 text-right font-mono`}
+                                title="Per-article sentiment score (not the topic slope)"
+                              >
+                                {h.score > 0 ? "+" : ""}{h.score.toFixed(2)}
+                              </span>
+                              <a
+                                href={h.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-slate-400 hover:text-blue-400 underline truncate"
+                                title={h.title}
+                              >
+                                {h.title}
+                              </a>
+                            </div>
+                          );
+                        })}
+                    </>
                   ) : (
                     <p className="text-xs text-slate-600">
                       No recent articles
@@ -499,7 +520,7 @@ export default function Dashboard() {
       <div className="mt-8 text-center text-xs text-slate-600">
         &copy; Eberhard Ojong 2026 | KG Media Internal Prediction Algo{" "}
         <a href="/changelog" className="text-blue-400 hover:text-blue-300 underline">
-          v1.0.9
+          v1.0.10
         </a>{" "}
         | Auto-refreshes every 30s | Cron scan daily |{" "}
         <a href="/amplification" className="text-blue-400 hover:text-blue-300 underline">
