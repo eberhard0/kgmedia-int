@@ -19,8 +19,16 @@ const STOPWORDS = new Set([
   "kepada", "the", "a", "an", "and", "or", "of", "for", "to", "in", "on",
   "at", "is", "was", "by", "with", "as", "from", "that", "this",
   // overly common headline words that would generate noise
-  "ini", "tak", "akan", "bisa", "harus", "tetap", "kembali",
+  "tak", "tetap", "kembali", "tengah", "usulan", "ambang", "batas",
+  // generic place / demographic terms — too broad to act as entities alone
+  "indonesia", "jakarta", "indonesian", "parents", "runners",
+  // common marketing / section words
+  "sports", "news", "sport", "premium", "terkini", "populer", "solusi",
 ]);
+
+// Reject entities that are too long (likely sentence fragments) or too short.
+const MAX_ENTITY_WORDS = 4;
+const MIN_ENTITY_WORDS = 1;
 
 // Common Indonesian title prefixes that imply an entity follows: keep them
 // part of the entity instead of dropping them.
@@ -40,14 +48,20 @@ export function extractEntitiesHeuristic(text: string): string[] {
   let current: string[] = [];
 
   const flush = () => {
-    if (current.length > 0) {
-      const entity = current.join(" ").trim();
-      // Reject single-token entities that are too generic
-      if (entity.length >= 3 && !(current.length === 1 && current[0].length < 4)) {
-        entities.push(entity);
-      }
-      current = [];
+    if (current.length === 0) return;
+    const words = current;
+    const entity = words.join(" ").trim();
+    const allGeneric = words.every((w) => STOPWORDS.has(w.toLowerCase()));
+    if (
+      entity.length >= 3 &&
+      words.length >= MIN_ENTITY_WORDS &&
+      words.length <= MAX_ENTITY_WORDS &&
+      !(words.length === 1 && words[0].length < 4) &&
+      !allGeneric
+    ) {
+      entities.push(entity);
     }
+    current = [];
   };
 
   for (let i = 0; i < tokens.length; i++) {
