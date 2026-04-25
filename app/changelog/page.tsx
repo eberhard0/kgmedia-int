@@ -18,6 +18,24 @@ export default function Changelog() {
       <div className="space-y-6">
         <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
           <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.2.0</span>
+            <span className="text-xs text-slate-500">April 25, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Drill-down for mentions: who said it, where, and what. Platform tiles
+            on the amplification page are now clickable — click a tile (e.g.
+            TikTok / Reddit / Instagram) to open a panel showing up to 100 of
+            that platform&apos;s last-24h mentions, with author, timestamp,
+            triggered entity, post snippet, and a direct link to the original
+            post. Click again to close. The cluster &ldquo;+ details&rdquo;
+            view also got richer — each mention now shows the post snippet
+            below the title and the author name in bolder text, so you can
+            see at a glance what each source actually said.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
             <span className="text-blue-400 font-bold">v1.1.6</span>
             <span className="text-xs text-slate-500">April 25, 2026</span>
           </div>

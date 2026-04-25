@@ -671,6 +671,24 @@ export async function getRecentMentions(limit = 50): Promise<AmplificationMentio
   return (data || []) as AmplificationMention[];
 }
 
+export async function getMentionsByPlatform(
+  platform: string,
+  limit = 100
+): Promise<AmplificationMention[]> {
+  const admin = getSupabaseAdmin();
+  const cutoff = new Date(
+    Date.now() - AMPLIFICATION_WINDOW_HOURS * 3600 * 1000
+  ).toISOString();
+  const { data } = await admin
+    .from("amplification_mentions")
+    .select("*")
+    .eq("platform", platform)
+    .gte("scraped_at", cutoff)
+    .order("scraped_at", { ascending: false })
+    .limit(limit);
+  return (data || []) as AmplificationMention[];
+}
+
 export interface ClusterWithContext extends AmplificationCluster {
   mentions: AmplificationMention[];
   source_article: { id: number; title: string; url: string; topic: string } | null;

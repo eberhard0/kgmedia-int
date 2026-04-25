@@ -291,6 +291,9 @@ export default function Amplification() {
   const [scanMessages, setScanMessages] = useState<string[]>([]);
   const [openCluster, setOpenCluster] = useState<number | null>(null);
   const [muted, setMuted] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
+  const [platformMentions, setPlatformMentions] = useState<Mention[]>([]);
+  const [platformLoading, setPlatformLoading] = useState(false);
 
   useEffect(() => {
     setMuted(localStorage.getItem("kg_amp_mute_v1") === "1");
@@ -302,6 +305,28 @@ export default function Amplification() {
       localStorage.setItem("kg_amp_mute_v1", next ? "1" : "0");
       return next;
     });
+  };
+
+  const togglePlatform = async (platform: string) => {
+    if (selectedPlatform === platform) {
+      setSelectedPlatform(null);
+      setPlatformMentions([]);
+      return;
+    }
+    setSelectedPlatform(platform);
+    setPlatformLoading(true);
+    setPlatformMentions([]);
+    try {
+      const res = await fetch(
+        `/api/amplification/mentions?platform=${encodeURIComponent(platform)}&limit=100`
+      );
+      if (res.ok) {
+        const json = await res.json();
+        setPlatformMentions(json.mentions || []);
+      }
+    } finally {
+      setPlatformLoading(false);
+    }
   };
 
   const fetchData = useCallback(async () => {
@@ -463,12 +488,19 @@ export default function Amplification() {
                   const total = stat?.total || 0;
                   const hourly = stat?.hourly || new Array(24).fill(0);
                   const dim = total === 0;
+                  const isSelected = selectedPlatform === p;
                   return (
-                    <div
+                    <button
                       key={p}
-                      className={`relative rounded-lg p-3 border ${meta.border} ${meta.bg} ${
-                        dim ? "opacity-50" : ""
-                      } transition-opacity`}
+                      onClick={() => total > 0 && togglePlatform(p)}
+                      disabled={total === 0}
+                      title={total === 0 ? "No mentions to drill into" : `Show ${total} ${meta.label} mentions`}
+                      className={`relative text-left rounded-lg p-3 border ${meta.border} ${meta.bg} ${
+                        dim ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-opacity-100"
+                      } ${
+                        isSelected ? "ring-2 ring-offset-2 ring-offset-slate-900" : ""
+                      } transition-all`}
+                      style={isSelected ? { boxShadow: `0 0 0 2px ${meta.hex}` } : undefined}
                     >
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <div className="flex items-center gap-2">
@@ -500,10 +532,88 @@ export default function Amplification() {
                         )}
                       </div>
                       <Sparkline values={hourly} color={meta.hex} />
-                    </div>
+                    </button>
                   );
                 })}
               </div>
+            </section>
+          )}
+
+          {/* Platform drill-down */}
+          {selectedPlatform && (
+            <section className="mb-8">
+              {(() => {
+                const meta = metaFor(selectedPlatform);
+                return (
+                  <div
+                    className="rounded-lg border bg-slate-800/20 p-4"
+                    style={{ borderColor: `${meta.hex}50` }}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <h2 className="text-sm uppercase tracking-wider font-bold flex items-center gap-2">
+                        <span
+                          className={`inline-flex items-center justify-center w-5 h-5 rounded ${meta.color} font-bold text-[10px] border ${meta.border}`}
+                          style={{ backgroundColor: `${meta.hex}20` }}
+                        >
+                          {meta.glyph}
+                        </span>
+                        <span className={meta.color}>{meta.label}</span>
+                        <span className="text-slate-400">· last 24h</span>
+                      </h2>
+                      <button
+                        onClick={() => togglePlatform(selectedPlatform)}
+                        className="text-xs text-slate-400 hover:text-slate-200 px-2 py-1 rounded border border-slate-700 hover:border-slate-500 transition-colors cursor-pointer"
+                      >
+                        Close ✕
+                      </button>
+                    </div>
+                    {platformLoading ? (
+                      <div className="text-sm text-slate-500 p-4 text-center">
+                        Loading {meta.label} mentions…
+                      </div>
+                    ) : platformMentions.length === 0 ? (
+                      <div className="text-sm text-slate-500 p-4 text-center">
+                        No {meta.label} mentions returned.
+                      </div>
+                    ) : (
+                      <div className="space-y-3 max-h-[480px] overflow-y-auto pr-2">
+                        {platformMentions.map((m) => (
+                          <div
+                            key={m.id}
+                            className="flex flex-col gap-1 text-sm border-b border-slate-700/30 last:border-b-0 pb-3 last:pb-0"
+                          >
+                            <a
+                              href={m.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline line-clamp-2 font-medium"
+                            >
+                              {m.title}
+                            </a>
+                            {m.snippet && m.snippet !== m.title && (
+                              <div className="text-xs text-slate-400 line-clamp-2">
+                                {m.snippet}
+                              </div>
+                            )}
+                            <div className="text-xs text-slate-500 flex flex-wrap gap-2 items-center">
+                              <span className="text-slate-300 font-semibold">
+                                {m.source || "(unknown)"}
+                              </span>
+                              {m.triggered_entity && (
+                                <span className="px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 font-mono text-[10px]">
+                                  {m.triggered_entity}
+                                </span>
+                              )}
+                              <span>·</span>
+                              <span>{formatTime(m.published_at || m.scraped_at)}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </section>
           )}
 
@@ -613,23 +723,28 @@ export default function Amplification() {
                         </div>
                       </button>
                       {isOpen && (
-                        <div className="border-t border-slate-700/50 p-4 space-y-3">
+                        <div className="border-t border-slate-700/50 p-4 space-y-4">
                           {c.mentions.slice(0, 8).map((m) => {
                             const meta = metaFor(m.platform);
                             return (
                               <div
                                 key={m.id}
-                                className="flex flex-col gap-1 text-sm"
+                                className="flex flex-col gap-1.5 text-sm"
                               >
                                 <a
                                   href={m.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-blue-400 hover:text-blue-300 underline line-clamp-2"
+                                  className="text-blue-400 hover:text-blue-300 underline line-clamp-2 font-medium"
                                 >
                                   {m.title}
                                 </a>
-                                <div className="text-xs text-slate-500 flex flex-wrap gap-2 items-center">
+                                {m.snippet && m.snippet !== m.title && (
+                                  <div className="text-xs text-slate-400 line-clamp-3">
+                                    {m.snippet}
+                                  </div>
+                                )}
+                                <div className="text-xs flex flex-wrap gap-2 items-center">
                                   <span
                                     className={`px-1.5 py-0.5 rounded font-mono ${meta.color}`}
                                     style={{
@@ -638,15 +753,22 @@ export default function Amplification() {
                                   >
                                     {meta.label}
                                   </span>
-                                  <span>{m.source}</span>
-                                  <span>·</span>
-                                  <span>
+                                  <span className="text-slate-200 font-semibold">
+                                    {m.source || "(unknown)"}
+                                  </span>
+                                  <span className="text-slate-600">·</span>
+                                  <span className="text-slate-500">
                                     {formatTime(m.published_at || m.scraped_at)}
                                   </span>
                                 </div>
                               </div>
                             );
                           })}
+                          {c.mentions.length > 8 && (
+                            <div className="text-xs text-slate-500 italic pt-1">
+                              + {c.mentions.length - 8} more mentions in this cluster
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
