@@ -551,7 +551,7 @@ export default function Amplification() {
             <section
               className={`mb-8 rounded-lg p-4 border ${
                 pulse
-                  ? "border-red-500/60 ring-2 ring-red-500/40 animate-pulse"
+                  ? "border-red-500/60 ring-2 ring-red-500/40"
                   : "border-red-500/30"
               }`}
             >
