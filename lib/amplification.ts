@@ -320,7 +320,8 @@ export async function runAmplificationScan(
   const { data: existing } = await admin
     .from("amplification_mentions")
     .select("url")
-    .gte("scraped_at", cutoff);
+    .gte("scraped_at", cutoff)
+    .limit(20000);
   const seen = new Set((existing || []).map((r: { url: string }) => r.url));
 
   const toInsert: Omit<AmplificationMention, "id">[] = [];
@@ -380,7 +381,8 @@ async function reclusterRecent(): Promise<{
     .from("amplification_mentions")
     .select("*")
     .gte("scraped_at", cutoff)
-    .order("scraped_at", { ascending: true });
+    .order("scraped_at", { ascending: true })
+    .limit(20000);
 
   const items = (mentions || []) as AmplificationMention[];
   if (items.length === 0) {
@@ -566,7 +568,8 @@ export async function getAmplificationStats(): Promise<AmplificationStats> {
   const { data } = await admin
     .from("amplification_mentions")
     .select("platform,triggered_entity,scraped_at,published_at")
-    .gte("scraped_at", cutoff);
+    .gte("scraped_at", cutoff)
+    .limit(20000);
   const items = (data || []) as Array<{
     platform: string;
     triggered_entity: string | null;

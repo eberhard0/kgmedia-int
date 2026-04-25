@@ -18,6 +18,16 @@ export default function Changelog() {
       <div className="space-y-6">
         <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
           <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.1.1</span>
+            <span className="text-xs text-slate-500">April 25, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Bug fix: amplification queries against Supabase were silently capped at 1000 rows, hiding TikTok and Facebook tiles and breaking cluster detection whenever 24h volume exceeded that limit. Raised the row limit on the dedupe lookup, clustering query, and stats query. With Apify enabled the dashboard now sees the full ~1500/day mention volume instead of just the first 1000.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
             <span className="text-blue-400 font-bold">v1.1.0</span>
             <span className="text-xs text-slate-500">April 25, 2026</span>
           </div>
