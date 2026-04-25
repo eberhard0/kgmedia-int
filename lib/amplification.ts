@@ -530,6 +530,121 @@ async function reclusterRecent(): Promise<{
   return { clustersActive: qualifying.length, clustersNew };
 }
 
+export interface PlatformStat {
+  platform: string;
+  total: number;
+  top_entity: string | null;
+  hourly: number[];
+}
+
+export interface AmplificationStats {
+  platforms: PlatformStat[];
+  timeline: {
+    labels: string[];
+    series: Record<string, number[]>;
+    total_per_hour: number[];
+  };
+  total_mentions: number;
+}
+
+const TRACKED_PLATFORMS = [
+  "google_news",
+  "reddit",
+  "twitter",
+  "tiktok",
+  "instagram",
+  "threads",
+  "facebook",
+];
+const TIMELINE_HOURS = 24;
+
+export async function getAmplificationStats(): Promise<AmplificationStats> {
+  const admin = getSupabaseAdmin();
+  const cutoff = new Date(
+    Date.now() - TIMELINE_HOURS * 3600 * 1000
+  ).toISOString();
+  const { data } = await admin
+    .from("amplification_mentions")
+    .select("platform,triggered_entity,scraped_at,published_at")
+    .gte("scraped_at", cutoff);
+  const items = (data || []) as Array<{
+    platform: string;
+    triggered_entity: string | null;
+    scraped_at: string;
+    published_at: string | null;
+  }>;
+
+  const now = Date.now();
+  const buckets = new Map<string, number[]>();
+  const totals = new Map<string, number>();
+  const entityCounts = new Map<string, Map<string, number>>();
+  for (const p of TRACKED_PLATFORMS) {
+    buckets.set(p, new Array(TIMELINE_HOURS).fill(0));
+    totals.set(p, 0);
+    entityCounts.set(p, new Map());
+  }
+
+  for (const m of items) {
+    const tsRaw = m.published_at || m.scraped_at;
+    if (!tsRaw) continue;
+    const ts = new Date(tsRaw).getTime();
+    if (Number.isNaN(ts)) continue;
+    const ageHours = Math.floor((now - ts) / 3_600_000);
+    if (ageHours < 0 || ageHours >= TIMELINE_HOURS) continue;
+    const bucket = TIMELINE_HOURS - 1 - ageHours;
+    const p = m.platform;
+    if (!buckets.has(p)) {
+      buckets.set(p, new Array(TIMELINE_HOURS).fill(0));
+      totals.set(p, 0);
+      entityCounts.set(p, new Map());
+    }
+    buckets.get(p)![bucket]++;
+    totals.set(p, (totals.get(p) || 0) + 1);
+    if (m.triggered_entity) {
+      const ec = entityCounts.get(p)!;
+      ec.set(m.triggered_entity, (ec.get(m.triggered_entity) || 0) + 1);
+    }
+  }
+
+  const platforms: PlatformStat[] = TRACKED_PLATFORMS.map((p) => {
+    const ec = entityCounts.get(p) || new Map();
+    let topEntity: string | null = null;
+    let topCount = 0;
+    for (const [e, c] of ec) {
+      if (c > topCount) {
+        topCount = c;
+        topEntity = e;
+      }
+    }
+    return {
+      platform: p,
+      total: totals.get(p) || 0,
+      top_entity: topEntity,
+      hourly: buckets.get(p) || new Array(TIMELINE_HOURS).fill(0),
+    };
+  });
+
+  const totalPerHour = new Array(TIMELINE_HOURS).fill(0);
+  const series: Record<string, number[]> = {};
+  for (const p of TRACKED_PLATFORMS) {
+    series[p] = buckets.get(p) || new Array(TIMELINE_HOURS).fill(0);
+    for (let i = 0; i < TIMELINE_HOURS; i++) {
+      totalPerHour[i] += series[p][i];
+    }
+  }
+  const labels: string[] = [];
+  for (let i = 0; i < TIMELINE_HOURS; i++) {
+    const h = TIMELINE_HOURS - 1 - i;
+    labels.push(h === 0 ? "now" : `${h}h`);
+  }
+
+  return {
+    platforms,
+    timeline: { labels, series, total_per_hour: totalPerHour },
+    total_mentions: items.length,
+  };
+}
+
 export async function getRecentMentions(limit = 50): Promise<AmplificationMention[]> {
   const admin = getSupabaseAdmin();
   const cutoff = new Date(

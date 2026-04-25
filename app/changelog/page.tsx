@@ -1,10 +1,12 @@
+import Link from "next/link";
+
 export default function Changelog() {
   return (
     <main className="min-h-screen p-4 md:p-8 max-w-4xl mx-auto">
       <div className="mb-8">
-        <a href="/" className="text-blue-400 hover:text-blue-300 text-sm">
+        <Link href="/" className="text-blue-400 hover:text-blue-300 text-sm">
           &larr; Back to Dashboard
-        </a>
+        </Link>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight mt-4">
           Changelog
         </h1>
@@ -14,6 +16,16 @@ export default function Changelog() {
       </div>
 
       <div className="space-y-6">
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.1.0</span>
+            <span className="text-xs text-slate-500">April 25, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Amplification page redesign. Replaced the long expand-collapse list with a scannable layout: a 7-tile platform grid (Google News, Reddit, X, TikTok, Instagram, Threads, Facebook) showing per-platform mention count, top entity, and a 24h sparkline; a stacked-bar timeline coloring each hour by platform; and active clusters as a 2-column card grid with optional expand-for-details. Latest mentions kept as a compact list at the bottom.
+          </p>
+        </div>
+
         <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
           <div className="flex items-center gap-3 mb-2">
             <span className="text-blue-400 font-bold">v1.0.10</span>
