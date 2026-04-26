@@ -223,9 +223,11 @@ export async function searchTwitter(
 }
 
 // ---------- Orchestrator ----------
-// Threads has no maintained free Apify actor and apidojo/twitter-scraper-lite
-// returns demo placeholders unless rented (paid pay-per-use). Both are wired
-// up above but excluded from the orchestrators until that changes.
+// Threads has no maintained free Apify actor; that one stays disabled below.
+// apidojo/twitter-scraper-lite is paid pay-per-use — calls return demo
+// placeholders unless the actor is rented on the Apify account. Demo objects
+// have no `url` field and get filtered out, so calling it without a rental
+// is wasteful but not harmful.
 
 export async function runAllApifySearches(
   keywords: string[],
@@ -236,6 +238,7 @@ export async function runAllApifySearches(
     searchTikTok(keywords).catch(() => []),
     searchInstagram(keywords).catch(() => []),
     searchFacebook(facebookPages).catch(() => []),
+    searchTwitter(keywords.join(" OR ")).catch(() => []),
   ]);
   return results.flat();
 }
@@ -284,11 +287,17 @@ export async function runEntityApifySearches(
 
   const tikTokKeywords = [...brandKeywords, ...allEntities];
   const igKeywords = [...brandKeywords, ...allEntities];
+  // Twitter / X search uses the actor's searchTerms — pass a single OR-joined
+  // brand-anchored query. Returns demo placeholders unless the apidojo
+  // actor is rented in the Apify account; demo objects lack a `url` field
+  // and get filtered out, so an unrented actor is harmless (just empty).
+  const twitterQuery = brandKeywords.join(" OR ");
 
   const results = await Promise.all([
     searchTikTok(tikTokKeywords).then(tagPerEntity).catch(() => []),
     searchInstagram(igKeywords).then(tagPerEntity).catch(() => []),
     searchFacebook(facebookPages).then(tagPerEntity).catch(() => []),
+    searchTwitter(twitterQuery).then(tagPerEntity).catch(() => []),
   ]);
   return results.flat();
 }

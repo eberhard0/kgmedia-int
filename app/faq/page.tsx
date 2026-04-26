@@ -339,14 +339,14 @@ export default function FAQ() {
             keywords) and Reddit search across r/indonesia, r/indonesian, and
             general subreddits. With an{" "}
             <code className="bg-slate-700 px-1 rounded">APIFY_TOKEN</code> the
-            system also pulls TikTok, Instagram, and Facebook posts for the same
-            entities. X / Twitter and Threads are{" "}
+            system also pulls TikTok, Instagram, Facebook, and X / Twitter posts
+            for the same entities. The X actor (<code className="bg-slate-700 px-1 rounded">apidojo/twitter-scraper-lite</code>)
+            is a <span className="font-semibold">paid Apify rental</span> on top
+            of the base APIFY_TOKEN — without an active rental, the actor
+            returns demo placeholders that get silently dropped, so the X tile
+            stays at zero. Threads is{" "}
             <span className="text-slate-400 italic">not currently covered</span>{" "}
-            — the only viable Apify Twitter actor is paid pay-per-use (and would
-            need a separate rental on top of Starter), and there is no maintained
-            free Threads actor on Apify at all. Wire those up by re-enabling the
-            calls in <code className="bg-slate-700 px-1 rounded">lib/apify.ts</code>{" "}
-            after renting a working actor.
+            — there is no maintained free Threads actor on Apify.
           </p>
           <p>
             Two optional AI providers improve quality when their keys are present:{" "}
@@ -368,7 +368,7 @@ export default function FAQ() {
       <div className="mt-12 text-center text-xs text-slate-600">
         &copy; Eberhard Ojong 2026 | KG Media Internal Prediction Algo{" "}
         <a href="/changelog" className="text-blue-400 hover:text-blue-300 underline">
-          v1.3.1
+          v1.3.2
         </a>{" "}
         | KG Media News
       </div>

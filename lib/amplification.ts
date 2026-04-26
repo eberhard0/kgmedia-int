@@ -309,7 +309,7 @@ export async function runAmplificationScan(
   }
 
   if (isApifyEnabled()) {
-    onProgress?.("Apify enabled — fetching TikTok / Instagram / Facebook posts");
+    onProgress?.("Apify enabled — fetching TikTok / Instagram / Facebook / X posts");
     const entityWatches = watches
       .filter((w) => w.entity && w.article)
       .map((w) => ({
@@ -601,6 +601,7 @@ export interface AmplificationStats {
 const TRACKED_PLATFORMS = [
   "google_news",
   "reddit",
+  "twitter",
   "tiktok",
   "instagram",
   "facebook",

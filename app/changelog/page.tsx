@@ -18,6 +18,23 @@ export default function Changelog() {
       <div className="space-y-6">
         <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
           <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.3.2</span>
+            <span className="text-xs text-slate-500">April 26, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Re-enabled X / Twitter coverage via Apify&apos;s{" "}
+            <code className="bg-slate-700 px-1 rounded">apidojo/twitter-scraper-lite</code>{" "}
+            actor — added back to the entity-driven and brand-only orchestrators,
+            put twitter back in the platform tile grid and the 24h timeline. The
+            actor is paid pay-per-use; without an active rental on the Apify
+            account it returns demo placeholders that get filtered out, so the
+            tile stays at zero (harmless). With rental, X mentions naming a KG
+            brand flow through the same brand filter as the other platforms.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
             <span className="text-blue-400 font-bold">v1.3.1</span>
             <span className="text-xs text-slate-500">April 26, 2026</span>
           </div>
