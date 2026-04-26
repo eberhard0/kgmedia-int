@@ -889,9 +889,7 @@ export default function Amplification() {
       )}
 
       <div className="mt-10 text-center text-xs text-slate-600">
-        Free tier: Google News + Reddit RSS. Apify (TikTok / IG / Threads / FB / X)
-        and OpenAI (smart entities + semantic clusters) activate automatically when
-        their API keys are configured.
+        &copy; Eberhard Ojong 2026
       </div>
     </main>
   );
