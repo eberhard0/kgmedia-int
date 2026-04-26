@@ -1,8 +1,8 @@
 name:  Build and push on Production
  
 on:
-  push:
-    branches: [master]
+  release:
+    types: [published]
 
 env:
   DEPLOYMENT_PRD: kgmedia-prediction-algo
