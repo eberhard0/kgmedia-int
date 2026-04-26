@@ -22,7 +22,31 @@ const parser = new Parser({
 });
 
 export const AMPLIFICATION_WINDOW_HOURS = 24;
-export const CLUSTER_ALERT_THRESHOLD = 3;
+
+// Two-tier cluster thresholds (24h window). Both tiers require >= 3 distinct
+// sources — a single viral post that gets reposted does not count.
+export const TRENDING_MIN_MENTIONS = 10;
+export const CRITICAL_MIN_MENTIONS = 100;
+export const CLUSTER_MIN_SOURCES = 3;
+
+// Brand filter — only mentions that explicitly name a KG Media brand or
+// affiliate are stored. Matched case-insensitively against title + snippet.
+export const KG_BRAND_TERMS = [
+  "kompas",
+  "kompas.com",
+  "kompas.id",
+  "hariankompas",
+  "kompastv",
+  "kompasiana",
+  "kontan",
+  "gramedia",
+  "santika",
+];
+
+function mentionsBrand(title: string, snippet: string): boolean {
+  const haystack = `${title} ${snippet}`.toLowerCase();
+  return KG_BRAND_TERMS.some((t) => haystack.includes(t));
+}
 const JACCARD_MATCH_THRESHOLD = 0.2;
 
 // Indonesian + English controversy trigger terms that suggest a Kompas article
@@ -253,6 +277,7 @@ export interface ScanSummary {
   inserted: number;
   clustersActive: number;
   clustersNew: number;
+  clustersCritical: number;
 }
 
 function platformFor(feedUrl: string): string {
@@ -337,9 +362,14 @@ export async function runAmplificationScan(
 
   const toInsert: Omit<AmplificationMention, "id">[] = [];
   const urlSet = new Set<string>();
+  let droppedNoBrand = 0;
   for (const m of raw) {
     if (!m.url || !m.title) continue;
     if (seen.has(m.url) || urlSet.has(m.url)) continue;
+    if (!mentionsBrand(m.title, m.snippet)) {
+      droppedNoBrand++;
+      continue;
+    }
     urlSet.add(m.url);
     toInsert.push({
       url: m.url,
@@ -368,20 +398,25 @@ export async function runAmplificationScan(
     inserted = data?.length || 0;
   }
 
+  if (droppedNoBrand > 0) {
+    onProgress?.(`Dropped ${droppedNoBrand} mentions that did not name a KG brand`);
+  }
   onProgress?.(`Inserted ${inserted} new mentions, clustering…`);
-  const { clustersActive, clustersNew } = await reclusterRecent();
+  const { clustersActive, clustersNew, clustersCritical } = await reclusterRecent();
 
   return {
     fetched: raw.length,
     inserted,
     clustersActive,
     clustersNew,
+    clustersCritical,
   };
 }
 
 async function reclusterRecent(): Promise<{
   clustersActive: number;
   clustersNew: number;
+  clustersCritical: number;
 }> {
   const admin = getSupabaseAdmin();
   const cutoff = new Date(
@@ -401,7 +436,7 @@ async function reclusterRecent(): Promise<{
       .from("amplification_clusters")
       .update({ status: "resolved", updated_at: new Date().toISOString() })
       .eq("status", "active");
-    return { clustersActive: 0, clustersNew: 0 };
+    return { clustersActive: 0, clustersNew: 0, clustersCritical: 0 };
   }
 
   let groups: AmplificationMention[][];
@@ -452,7 +487,7 @@ async function reclusterRecent(): Promise<{
 
   const qualifying = groups.filter((g) => {
     const distinctSources = new Set(g.map((m) => m.source)).size;
-    return g.length >= CLUSTER_ALERT_THRESHOLD && distinctSources >= CLUSTER_ALERT_THRESHOLD;
+    return g.length >= TRENDING_MIN_MENTIONS && distinctSources >= CLUSTER_MIN_SOURCES;
   });
 
   // Mark previous active clusters resolved; we rebuild each scan for simplicity.
@@ -540,7 +575,10 @@ async function reclusterRecent(): Promise<{
     }
   }
 
-  return { clustersActive: qualifying.length, clustersNew };
+  const clustersCritical = qualifying.filter(
+    (g) => g.length >= CRITICAL_MIN_MENTIONS
+  ).length;
+  return { clustersActive: qualifying.length, clustersNew, clustersCritical };
 }
 
 export interface PlatformStat {
@@ -692,6 +730,7 @@ export async function getMentionsByPlatform(
 export interface ClusterWithContext extends AmplificationCluster {
   mentions: AmplificationMention[];
   source_article: { id: number; title: string; url: string; topic: string } | null;
+  tier: "trending" | "critical";
 }
 
 export async function getActiveClusters(): Promise<ClusterWithContext[]> {
@@ -754,5 +793,8 @@ export async function getActiveClusters(): Promise<ClusterWithContext[]> {
     source_article: c.kompas_article_id
       ? articleMap.get(c.kompas_article_id) || null
       : null,
+    tier: (c.mention_count >= CRITICAL_MIN_MENTIONS ? "critical" : "trending") as
+      | "trending"
+      | "critical",
   }));
 }

@@ -215,40 +215,65 @@ export default function FAQ() {
             answers a different question from the main dashboard. Instead of{" "}
             <em>&ldquo;is sentiment turning negative on a topic?&rdquo;</em> it asks{" "}
             <em>
-              &ldquo;is a Kompas story being picked up and discussed across multiple
-              external platforms simultaneously?&rdquo;
+              &ldquo;is anyone outside KG Media talking about a KG Media brand right
+              now?&rdquo;
             </em>{" "}
-            That cross-platform pickup is the early signal that a story is going
-            from a Kompas headline to a public controversy.
+            Every mention stored on this page comes from someone other than KG
+            Media itself — a TikTok user, a Reddit thread, a news outlet — and
+            explicitly names one of our brands.
           </p>
 
           <h3 className="text-base font-semibold text-white mt-4">
-            What is an Active Cluster?
+            Brand filter — which mentions count?
           </h3>
           <p>
-            A cluster is a group of mentions across Google News, Reddit, X / Twitter,
-            TikTok, Instagram, Threads, and Facebook that all appear to be about the
-            same Kompas-related story. An <span className="text-red-400 font-bold">active</span>{" "}
-            cluster means it has crossed both thresholds in the last 24 hours:
+            We only store posts whose title or caption explicitly names one of:{" "}
+            <code className="bg-slate-700 px-1 rounded">kompas</code>,{" "}
+            <code className="bg-slate-700 px-1 rounded">kompas.com</code>,{" "}
+            <code className="bg-slate-700 px-1 rounded">kompas.id</code>,{" "}
+            <code className="bg-slate-700 px-1 rounded">hariankompas</code>,{" "}
+            <code className="bg-slate-700 px-1 rounded">kompastv</code>,{" "}
+            <code className="bg-slate-700 px-1 rounded">kompasiana</code>,{" "}
+            <code className="bg-slate-700 px-1 rounded">kontan</code>,{" "}
+            <code className="bg-slate-700 px-1 rounded">gramedia</code>,{" "}
+            <code className="bg-slate-700 px-1 rounded">santika</code>. Anything
+            else gets dropped — even if it&apos;s about a topic Kompas covered, if
+            the post doesn&apos;t name a brand it isn&apos;t amplification of KG
+            Media. The scan progress shows how many were dropped per run.
+          </p>
+
+          <h3 className="text-base font-semibold text-white mt-4">
+            Two tiers — Trending and Critical
+          </h3>
+          <p>
+            Mentions are grouped into clusters (multiple posts about the same
+            angle / same brand). A cluster surfaces only when at least{" "}
+            <span className="text-yellow-400 font-bold">10 mentions from 3
+            distinct sources</span> have come in within 24 hours. Below that, the
+            mentions exist in the database (and show up in the platform-tile
+            drill-downs) but no cluster card appears.
           </p>
           <div className="grid grid-cols-2 gap-3 my-3">
-            <div className="bg-red-500/10 border border-red-500/30 rounded p-3">
-              <div className="text-red-400 font-bold text-lg">≥ 3 mentions</div>
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded p-3">
+              <div className="text-yellow-400 font-bold text-lg">Trending</div>
               <div className="text-xs text-slate-400 mt-1">
-                The story is being talked about, not just mentioned once.
+                10–99 mentions, ≥3 sources. Watch list — story is climbing but
+                not yet a public-facing alert. No pulse, no banner.
               </div>
             </div>
             <div className="bg-red-500/10 border border-red-500/30 rounded p-3">
-              <div className="text-red-400 font-bold text-lg">≥ 3 distinct sources</div>
+              <div className="text-red-400 font-bold text-lg">Critical</div>
               <div className="text-xs text-slate-400 mt-1">
-                Multiple independent platforms — not just three retweets of the same post.
+                100+ mentions, ≥3 sources. Real public conversation around a KG
+                brand. Red border + pulsing banner on dashboard and amplification
+                page.
               </div>
             </div>
           </div>
           <p>
-            Both must be true. A single Reddit thread with 20 comments is not a
-            cluster. Three independent posts on TikTok, Reddit, and X about the same
-            Kompas story is.
+            The 3-source requirement is the same on both tiers: 100 reposts of
+            one viral TikTok still counts as one source. A genuine cross-platform
+            conversation is what we&apos;re trying to catch.
           </p>
 
           <h3 className="text-base font-semibold text-white mt-4">
@@ -285,13 +310,16 @@ export default function FAQ() {
             What does the pulsing red border mean?
           </h3>
           <p>
-            When at least one cluster is active, the Active Clusters section pulses
-            red and the dashboard shows a clickable banner. This is meant to be hard
-            to miss — by definition, an active cluster means a Kompas story has
-            already crossed the threshold for editorial attention. Click{" "}
-            <span className="text-slate-400 font-bold">🔔 Mute alerts</span> on the
-            Amplification page to silence the pulse for your browser; the alerts
-            stay visible but stop animating. Your preference is remembered locally.
+            Pulsing fires <span className="font-semibold text-white">only</span>{" "}
+            on Critical-tier clusters (100+ mentions, 3+ sources). When at least
+            one Critical cluster exists, that section&apos;s border pulses red
+            and the main dashboard shows a clickable banner. Trending-tier
+            clusters never pulse — they&apos;re for situational awareness, not
+            alerting. Click{" "}
+            <span className="text-slate-400 font-bold">🔔 Mute alerts</span> on
+            the Amplification page to silence the pulse for your browser; the
+            alerts stay visible but stop animating. Your preference is remembered
+            locally.
           </p>
 
           <h3 className="text-base font-semibold text-white mt-4">
@@ -340,7 +368,7 @@ export default function FAQ() {
       <div className="mt-12 text-center text-xs text-slate-600">
         &copy; Eberhard Ojong 2026 | KG Media Internal Prediction Algo{" "}
         <a href="/changelog" className="text-blue-400 hover:text-blue-300 underline">
-          v1.2.0
+          v1.3.0
         </a>{" "}
         | KG Media News
       </div>

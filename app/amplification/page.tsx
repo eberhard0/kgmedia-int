@@ -35,6 +35,7 @@ interface Cluster {
   mentions: Mention[];
   triggered_entity?: string;
   source_article: SourceArticle | null;
+  tier: "trending" | "critical";
 }
 
 interface PlatformStat {
@@ -56,7 +57,9 @@ interface Stats {
 
 interface ApiResponse {
   updated_at: string;
-  alert_count: number;
+  alert_count: number;        // critical only — drives the red pulse
+  critical_count: number;
+  trending_count: number;
   clusters: Cluster[];
   recent: Mention[];
   stats: Stats;
@@ -283,6 +286,124 @@ function StackedTimeline({ stats }: { stats: Stats }) {
   );
 }
 
+// ---------- Cluster card (shared by Critical + Trending sections) ----------
+function renderClusterCard(
+  c: Cluster,
+  tier: "critical" | "trending",
+  isOpen: boolean,
+  setOpenCluster: (fn: (cur: number | null) => number | null) => void
+) {
+  const accent =
+    tier === "critical"
+      ? {
+          border: "border-red-500/30",
+          chipBg: "bg-red-500/20",
+          chipText: "text-red-300",
+          entityText: "text-red-400",
+        }
+      : {
+          border: "border-yellow-500/30",
+          chipBg: "bg-yellow-500/20",
+          chipText: "text-yellow-300",
+          entityText: "text-yellow-400",
+        };
+  return (
+    <div
+      key={c.id}
+      className={`border ${accent.border} rounded-lg bg-slate-800/30 hover:bg-slate-800/50 transition-colors`}
+    >
+      <button
+        onClick={() => setOpenCluster((cur) => (cur === c.id ? null : c.id))}
+        className="w-full text-left p-4"
+      >
+        {c.triggered_entity && (
+          <div className={`text-[10px] uppercase tracking-wider ${accent.entityText} mb-1`}>
+            Entity:{" "}
+            <span className="font-bold">{c.triggered_entity}</span>
+          </div>
+        )}
+        {c.source_article && (
+          <div className="text-xs text-slate-300 mb-2 line-clamp-2">
+            About:{" "}
+            <a
+              href={c.source_article.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-blue-400 hover:text-blue-300 underline"
+            >
+              {c.source_article.title}
+            </a>{" "}
+            <span className="text-slate-500">({c.source_article.topic})</span>
+          </div>
+        )}
+        <div className="flex items-center gap-1.5 flex-wrap mb-2">
+          {c.keywords.slice(0, 5).map((k) => (
+            <span
+              key={k}
+              className={`text-[10px] px-1.5 py-0.5 rounded ${accent.chipBg} ${accent.chipText} font-mono`}
+            >
+              {k}
+            </span>
+          ))}
+        </div>
+        <div className="text-xs text-slate-400 flex items-center justify-between">
+          <span>
+            {c.mention_count} mentions · {c.source_count} sources
+          </span>
+          <span className="text-slate-500">
+            {isOpen ? "− hide" : "+ details"}
+          </span>
+        </div>
+      </button>
+      {isOpen && (
+        <div className="border-t border-slate-700/50 p-4 space-y-4">
+          {c.mentions.slice(0, 8).map((m) => {
+            const meta = metaFor(m.platform);
+            return (
+              <div key={m.id} className="flex flex-col gap-1.5 text-sm">
+                <a
+                  href={m.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:text-blue-300 underline line-clamp-2 font-medium"
+                >
+                  {m.title}
+                </a>
+                {m.snippet && m.snippet !== m.title && (
+                  <div className="text-xs text-slate-400 line-clamp-3">
+                    {m.snippet}
+                  </div>
+                )}
+                <div className="text-xs flex flex-wrap gap-2 items-center">
+                  <span
+                    className={`px-1.5 py-0.5 rounded font-mono ${meta.color}`}
+                    style={{ backgroundColor: `${meta.hex}20` }}
+                  >
+                    {meta.label}
+                  </span>
+                  <span className="text-slate-200 font-semibold">
+                    {m.source || "(unknown)"}
+                  </span>
+                  <span className="text-slate-600">·</span>
+                  <span className="text-slate-500">
+                    {formatTime(m.published_at || m.scraped_at)}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+          {c.mentions.length > 8 && (
+            <div className="text-xs text-slate-500 italic pt-1">
+              + {c.mentions.length - 8} more mentions in this cluster
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------- Page ----------
 export default function Amplification() {
   const [data, setData] = useState<ApiResponse | null>(null);
@@ -435,11 +556,12 @@ export default function Amplification() {
             <span className="text-red-400 text-2xl">🚨</span>
             <div className="flex-1">
               <div className="text-red-400 font-bold uppercase tracking-wider">
-                {data!.alert_count} Active Amplification Alert
+                {data!.alert_count} Critical Amplification Alert
                 {data!.alert_count > 1 ? "s" : ""}
               </div>
               <div className="text-xs text-slate-400 mt-1">
-                3+ sources reporting on the same Kompas-related topic. See{" "}
+                100+ mentions and 3+ distinct sources naming a KG brand in the
+                last 24h. See{" "}
                 <Link href="/faq#amplification" className="text-blue-400 hover:text-blue-300 underline">
                   what this means
                 </Link>
@@ -654,8 +776,8 @@ export default function Amplification() {
             </section>
           )}
 
-          {/* Cluster cards */}
-          {hasAlerts ? (
+          {/* Critical clusters */}
+          {data!.critical_count > 0 && (
             <section
               className={`mb-8 rounded-lg p-4 border ${
                 pulse
@@ -664,127 +786,46 @@ export default function Amplification() {
               }`}
             >
               <h2 className="text-sm uppercase tracking-wider text-red-400 font-bold mb-3">
-                Active Clusters · {data!.alert_count}
+                Critical · {data!.critical_count}
+                <span className="ml-2 text-xs text-slate-500 normal-case font-normal">
+                  100+ mentions, 3+ sources
+                </span>
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {data!.clusters.map((c) => {
-                  const isOpen = openCluster === c.id;
-                  return (
-                    <div
-                      key={c.id}
-                      className="border border-red-500/30 rounded-lg bg-slate-800/30 hover:bg-slate-800/50 transition-colors"
-                    >
-                      <button
-                        onClick={() =>
-                          setOpenCluster((cur) => (cur === c.id ? null : c.id))
-                        }
-                        className="w-full text-left p-4"
-                      >
-                        {c.triggered_entity && (
-                          <div className="text-[10px] uppercase tracking-wider text-red-400 mb-1">
-                            Entity:{" "}
-                            <span className="font-bold">{c.triggered_entity}</span>
-                          </div>
-                        )}
-                        {c.source_article && (
-                          <div className="text-xs text-slate-300 mb-2 line-clamp-2">
-                            About:{" "}
-                            <a
-                              href={c.source_article.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="text-blue-400 hover:text-blue-300 underline"
-                            >
-                              {c.source_article.title}
-                            </a>{" "}
-                            <span className="text-slate-500">
-                              ({c.source_article.topic})
-                            </span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-1.5 flex-wrap mb-2">
-                          {c.keywords.slice(0, 5).map((k) => (
-                            <span
-                              key={k}
-                              className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 font-mono"
-                            >
-                              {k}
-                            </span>
-                          ))}
-                        </div>
-                        <div className="text-xs text-slate-400 flex items-center justify-between">
-                          <span>
-                            {c.mention_count} mentions · {c.source_count} sources
-                          </span>
-                          <span className="text-slate-500">
-                            {isOpen ? "− hide" : "+ details"}
-                          </span>
-                        </div>
-                      </button>
-                      {isOpen && (
-                        <div className="border-t border-slate-700/50 p-4 space-y-4">
-                          {c.mentions.slice(0, 8).map((m) => {
-                            const meta = metaFor(m.platform);
-                            return (
-                              <div
-                                key={m.id}
-                                className="flex flex-col gap-1.5 text-sm"
-                              >
-                                <a
-                                  href={m.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-400 hover:text-blue-300 underline line-clamp-2 font-medium"
-                                >
-                                  {m.title}
-                                </a>
-                                {m.snippet && m.snippet !== m.title && (
-                                  <div className="text-xs text-slate-400 line-clamp-3">
-                                    {m.snippet}
-                                  </div>
-                                )}
-                                <div className="text-xs flex flex-wrap gap-2 items-center">
-                                  <span
-                                    className={`px-1.5 py-0.5 rounded font-mono ${meta.color}`}
-                                    style={{
-                                      backgroundColor: `${meta.hex}20`,
-                                    }}
-                                  >
-                                    {meta.label}
-                                  </span>
-                                  <span className="text-slate-200 font-semibold">
-                                    {m.source || "(unknown)"}
-                                  </span>
-                                  <span className="text-slate-600">·</span>
-                                  <span className="text-slate-500">
-                                    {formatTime(m.published_at || m.scraped_at)}
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                          {c.mentions.length > 8 && (
-                            <div className="text-xs text-slate-500 italic pt-1">
-                              + {c.mentions.length - 8} more mentions in this cluster
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                {data!.clusters
+                  .filter((c) => c.tier === "critical")
+                  .map((c) => renderClusterCard(c, "critical", openCluster === c.id, setOpenCluster))}
               </div>
             </section>
-          ) : (
+          )}
+
+          {/* Trending clusters */}
+          {data!.trending_count > 0 && (
+            <section className="mb-8 rounded-lg p-4 border border-yellow-500/30">
+              <h2 className="text-sm uppercase tracking-wider text-yellow-400 font-bold mb-3">
+                Trending · {data!.trending_count}
+                <span className="ml-2 text-xs text-slate-500 normal-case font-normal">
+                  10+ mentions, 3+ sources — watch list
+                </span>
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {data!.clusters
+                  .filter((c) => c.tier === "trending")
+                  .map((c) => renderClusterCard(c, "trending", openCluster === c.id, setOpenCluster))}
+              </div>
+            </section>
+          )}
+
+          {/* Empty state */}
+          {data!.critical_count === 0 && data!.trending_count === 0 && (
             <section className="mb-8">
               <div className="text-center p-6 border border-slate-700/50 rounded-lg bg-slate-800/20 text-slate-400">
                 <div className="text-3xl mb-2">✓</div>
                 <div className="font-semibold text-slate-300">
-                  No active amplification alerts
+                  No active amplification clusters
                 </div>
                 <div className="text-xs text-slate-500 mt-1">
-                  No Kompas controversy clusters detected in the last 24 hours.
+                  Nothing crossed 10 mentions / 3 sources naming a KG brand in the last 24 hours.
                 </div>
               </div>
             </section>

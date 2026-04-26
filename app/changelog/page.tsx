@@ -18,6 +18,26 @@ export default function Changelog() {
       <div className="space-y-6">
         <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
           <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.3.0</span>
+            <span className="text-xs text-slate-500">April 26, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Refocused amplification on KG Media brand mentions and introduced
+            two-tier alerts. Mentions are now stored only if their title or
+            snippet explicitly names a KG brand (kompas, kompas.com, kompas.id,
+            hariankompas, kompastv, kompasiana, kontan, gramedia, santika) —
+            off-brand topical mentions are dropped at insert time and reported
+            via SSE. Cluster thresholds raised: <span className="text-yellow-400 font-semibold">Trending</span>{" "}
+            requires ≥10 mentions / ≥3 sources, <span className="text-red-400 font-semibold">Critical</span>{" "}
+            requires ≥100 mentions / ≥3 sources. Trending clusters render in
+            yellow without pulsing; Critical render in red and trigger the
+            dashboard banner + section pulse. The 3-distinct-sources requirement
+            is unchanged. FAQ updated to spell out the brand list and tiers.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
             <span className="text-blue-400 font-bold">v1.2.0</span>
             <span className="text-xs text-slate-500">April 25, 2026</span>
           </div>
