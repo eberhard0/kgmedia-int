@@ -1,10 +1,12 @@
+import Link from "next/link";
+
 export default function Changelog() {
   return (
     <main className="min-h-screen p-4 md:p-8 max-w-4xl mx-auto">
       <div className="mb-8">
-        <a href="/" className="text-blue-400 hover:text-blue-300 text-sm">
+        <Link href="/" className="text-blue-400 hover:text-blue-300 text-sm">
           &larr; Back to Dashboard
-        </a>
+        </Link>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight mt-4">
           Changelog
         </h1>
@@ -14,6 +16,243 @@ export default function Changelog() {
       </div>
 
       <div className="space-y-6">
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.3.5</span>
+            <span className="text-xs text-slate-500">April 26, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            The &ldquo;+ N more mentions in this cluster&rdquo; line at the bottom
+            of an expanded cluster card is now a clickable button. Click to reveal
+            every mention in the cluster (rendered in a 480px-tall scrollable
+            list); click again to collapse back to the first 8. Footer on the
+            amplification page reads &ldquo;Created by Eberhard Ojong &middot;
+            &copy; 2026&rdquo;.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.3.4</span>
+            <span className="text-xs text-slate-500">April 26, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Instagram fix. Confirmed via the new SSE breakdown that IG was
+            returning ~40 posts/scan but the brand filter dropped all of them —
+            because <code className="bg-slate-700 px-1 rounded">apify/instagram-scraper</code>{" "}
+            puts hashtags and @mentions in separate arrays that aren&apos;t
+            part of the caption text. Appending those arrays to the snippet
+            before insert so the brand filter can see <code className="bg-slate-700 px-1 rounded">#kompas</code>{" "}
+            / <code className="bg-slate-700 px-1 rounded">@hariankompas</code>{" "}
+            and let the post through.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.3.3</span>
+            <span className="text-xs text-slate-500">April 26, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Tightened Apify compute usage. Halved per-actor result limits
+            (TikTok 20→10, Instagram 20→10, Facebook 15→10, X 30→15) and
+            cut Instagram hashtag URLs per call from 8 to 4. The Instagram
+            actor was the most expensive line item; with the URL cap halved,
+            its compute cost drops roughly proportionally. Volume per scan
+            should still be enough for cluster formation given the brand
+            filter — fewer-but-relevant posts are what we actually need.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.3.2</span>
+            <span className="text-xs text-slate-500">April 26, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Re-enabled X / Twitter coverage via Apify&apos;s{" "}
+            <code className="bg-slate-700 px-1 rounded">apidojo/twitter-scraper-lite</code>{" "}
+            actor — added back to the entity-driven and brand-only orchestrators,
+            put twitter back in the platform tile grid and the 24h timeline. The
+            actor is paid pay-per-use; without an active rental on the Apify
+            account it returns demo placeholders that get filtered out, so the
+            tile stays at zero (harmless). With rental, X mentions naming a KG
+            brand flow through the same brand filter as the other platforms.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.3.1</span>
+            <span className="text-xs text-slate-500">April 26, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Scan progress messages now persist after the scan completes (with a
+            &ldquo;Last Scan&rdquo; header and a clear button) so you can
+            actually read the breakdown / drop-count lines instead of having
+            them disappear the second the run ends. Header subtitle updated to
+            describe the new brand-mention focus and tier thresholds.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.3.0</span>
+            <span className="text-xs text-slate-500">April 26, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Refocused amplification on KG Media brand mentions and introduced
+            two-tier alerts. Mentions are now stored only if their title or
+            snippet explicitly names a KG brand (kompas, kompas.com, kompas.id,
+            hariankompas, kompastv, kompasiana, kontan, gramedia, santika) —
+            off-brand topical mentions are dropped at insert time and reported
+            via SSE. Cluster thresholds raised: <span className="text-yellow-400 font-semibold">Trending</span>{" "}
+            requires ≥10 mentions / ≥3 sources, <span className="text-red-400 font-semibold">Critical</span>{" "}
+            requires ≥100 mentions / ≥3 sources. Trending clusters render in
+            yellow without pulsing; Critical render in red and trigger the
+            dashboard banner + section pulse. The 3-distinct-sources requirement
+            is unchanged. FAQ updated to spell out the brand list and tiers.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.2.0</span>
+            <span className="text-xs text-slate-500">April 25, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Drill-down for mentions: who said it, where, and what. Platform tiles
+            on the amplification page are now clickable — click a tile (e.g.
+            TikTok / Reddit / Instagram) to open a panel showing up to 100 of
+            that platform&apos;s last-24h mentions, with author, timestamp,
+            triggered entity, post snippet, and a direct link to the original
+            post. Click again to close. The cluster &ldquo;+ details&rdquo;
+            view also got richer — each mention now shows the post snippet
+            below the title and the author name in bolder text, so you can
+            see at a glance what each source actually said.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.1.6</span>
+            <span className="text-xs text-slate-500">April 25, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Added a per-platform breakdown line to the amplification scan SSE
+            (e.g. <code className="bg-slate-700 px-1 rounded">Apify breakdown: tiktok=300, facebook=58, instagram=42</code>),
+            so the &ldquo;Scan Now&rdquo; progress messages now show exactly which
+            actors contributed how many posts. Lets us spot a silent actor without
+            digging through server logs. Also corrected the stale &ldquo;fetching
+            TikTok/IG/Threads/FB/X posts&rdquo; message — Threads and X aren&apos;t
+            in the active orchestrator anymore.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.1.5</span>
+            <span className="text-xs text-slate-500">April 25, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Apify integration cleanup. Diagnosed three actors that had been
+            silently returning zero: the Threads scraper had been delisted (404),
+            Instagram&apos;s input schema had changed (400 on the old{" "}
+            <code className="bg-slate-700 px-1 rounded">search</code>+{" "}
+            <code className="bg-slate-700 px-1 rounded">searchType</code> shape),
+            and the Twitter actor was returning{" "}
+            <code className="bg-slate-700 px-1 rounded">{"{demo:true}"}</code>{" "}
+            placeholders because it&apos;s now a paid pay-per-use rental.
+            Rewrote Instagram to use{" "}
+            <code className="bg-slate-700 px-1 rounded">directUrls</code> over
+            hashtag pages (now returning real posts), and removed Threads + X /
+            Twitter from the active orchestrator and platform tiles to stop
+            wasting Apify compute. Both functions stay in{" "}
+            <code className="bg-slate-700 px-1 rounded">lib/apify.ts</code> for
+            easy re-enable if a working actor becomes available.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.1.4</span>
+            <span className="text-xs text-slate-500">April 25, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Stopped the Active Clusters section from pulsing. The alert banner at
+            the top of the amplification page still pulses (it&apos;s small and
+            quickly scannable), but the cluster card grid now keeps a static red
+            border so the substantive text inside each card stays readable.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.1.3</span>
+            <span className="text-xs text-slate-500">April 25, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Switched the optional AI integrations from OpenAI to Claude (entity
+            extraction, model claude-haiku-4-5) and Voyage AI (semantic clustering,
+            model voyage-3-lite). Claude produces cleaner Indonesian-language
+            entity names; Voyage handles multilingual embeddings cheaply and is
+            Anthropic&apos;s recommended embedding partner. Lowered the cluster
+            similarity threshold from 0.75 to 0.65 to match Voyage&apos;s scoring
+            distribution, and added input chunking so scans with 1000+ mentions
+            no longer exceed the embedding API&apos;s per-request batch cap.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.1.2</span>
+            <span className="text-xs text-slate-500">April 25, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Amplification UX. Moved the pulsing red ring off the whole page and onto just the Active Clusters card grid, so it&apos;s clear which part is alerting. Added a 🔔 Mute alerts toggle (persisted per browser via localStorage) that silences the pulse on both the dashboard and the amplification page without hiding the alerts themselves. New FAQ section explains what an active cluster is, the 3 mentions / 3 sources threshold, how to read a cluster card, and what to do when one fires.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.1.1</span>
+            <span className="text-xs text-slate-500">April 25, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Bug fix: amplification queries against Supabase were silently capped at 1000 rows, hiding TikTok and Facebook tiles and breaking cluster detection whenever 24h volume exceeded that limit. Raised the row limit on the dedupe lookup, clustering query, and stats query. With Apify enabled the dashboard now sees the full ~1500/day mention volume instead of just the first 1000.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.1.0</span>
+            <span className="text-xs text-slate-500">April 25, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Amplification page redesign. Replaced the long expand-collapse list with a scannable layout: a 7-tile platform grid (Google News, Reddit, X, TikTok, Instagram, Threads, Facebook) showing per-platform mention count, top entity, and a 24h sparkline; a stacked-bar timeline coloring each hour by platform; and active clusters as a 2-column card grid with optional expand-for-details. Latest mentions kept as a compact list at the bottom.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.0.10</span>
+            <span className="text-xs text-slate-500">April 25, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Headline panel clarity fix. Per-article sentiment scores are now labeled &quot;article&quot; so they are not confused with the topic slope. When a topic is ESCALATING or CRITICAL the sample headlines are sorted with the most negative ones first (most positive first when DE-ESCALATING) so the reason for the trend is immediately visible.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.0.9</span>
+            <span className="text-xs text-slate-500">April 25, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Entity-driven amplification monitoring. Each scan now extracts named entities from recent Kompas.com / Kompas.id / Kompas TV / Kontan articles and watches every platform for those entities being discussed in connection with Kompas. Each cluster on the dashboard now shows the source Kompas article that triggered it and the specific entity being amplified. AI entity extraction activates automatically when OpenAI is wired up.
+          </p>
+        </div>
+
         <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
           <div className="flex items-center gap-3 mb-2">
             <span className="text-blue-400 font-bold">v1.0.8</span>

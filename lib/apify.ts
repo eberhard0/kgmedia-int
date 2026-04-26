@@ -11,6 +11,13 @@ export interface ApifyRawMention {
   snippet: string;
   published_at: string | null;
   trigger_query: string;
+  kompas_article_id?: number | null;
+  triggered_entity?: string;
+}
+
+export interface EntityWatchInput {
+  entity: string;
+  articleId: number;
 }
 
 export function isApifyEnabled(): boolean {
@@ -58,7 +65,7 @@ interface TikTokItem {
 
 export async function searchTikTok(
   keywords: string[],
-  resultsPerPage = 20
+  resultsPerPage = 10
 ): Promise<ApifyRawMention[]> {
   if (!isApifyEnabled() || keywords.length === 0) return [];
   const items = (await runActor("clockworks/free-tiktok-scraper", {
@@ -81,33 +88,62 @@ export async function searchTikTok(
 // ---------- Instagram (apify/instagram-scraper) ----------
 interface InstagramItem {
   url?: string;
+  shortCode?: string;
   ownerUsername?: string;
   caption?: string;
+  hashtags?: string[];
+  mentions?: string[];
   timestamp?: string;
   type?: string;
 }
 
+function keywordsToHashtagUrls(keywords: string[], max = 4): string[] {
+  return keywords
+    .map((k) => k.toLowerCase().replace(/[^a-z0-9_]/g, ""))
+    .filter((k) => k.length >= 3 && k.length <= 30)
+    .slice(0, max)
+    .map((t) => `https://www.instagram.com/explore/tags/${t}/`);
+}
+
 export async function searchInstagram(
   keywords: string[],
-  resultsLimit = 20
+  resultsLimit = 10
 ): Promise<ApifyRawMention[]> {
   if (!isApifyEnabled() || keywords.length === 0) return [];
+  const directUrls = keywordsToHashtagUrls(keywords);
+  if (directUrls.length === 0) return [];
   const items = (await runActor("apify/instagram-scraper", {
-    search: keywords,
-    searchType: "hashtag",
+    directUrls,
+    resultsType: "posts",
     resultsLimit,
   })) as InstagramItem[];
   return items
-    .filter((i) => i.url)
-    .map((i) => ({
-      url: i.url!,
-      platform: "instagram",
-      source: i.ownerUsername || "",
-      title: truncate(i.caption, 200) || `(Instagram ${i.type || "post"})`,
-      snippet: truncate(i.caption, 500),
-      published_at: i.timestamp || null,
-      trigger_query: `Instagram: ${keywords.join(", ")}`,
-    }));
+    .map((i) => {
+      const url = i.url || (i.shortCode ? `https://www.instagram.com/p/${i.shortCode}/` : "");
+      return { url, item: i };
+    })
+    .filter(({ url }) => url.length > 0)
+    .map(({ url, item }) => {
+      // Hashtags + mentions arrays sit separately from the caption text on
+      // IG items. The brand filter downstream checks (title + snippet) for
+      // brand keywords as substrings — without these, posts tagged via
+      // #kompas / @kompascom but not naming the brand in the caption body
+      // get dropped. Append them so the filter can see them.
+      const tagText = (item.hashtags || []).map((h) => `#${h}`).join(" ");
+      const mentionText = (item.mentions || []).map((m) => `@${m}`).join(" ");
+      const captionWithTags = [item.caption, tagText, mentionText]
+        .filter(Boolean)
+        .join(" ");
+      return {
+        url,
+        platform: "instagram",
+        source: item.ownerUsername || "",
+        title: truncate(item.caption, 200) || `(Instagram ${item.type || "post"})`,
+        snippet: truncate(captionWithTags, 500),
+        published_at: item.timestamp || null,
+        trigger_query: `Instagram: ${keywords.join(", ")}`,
+      };
+    });
 }
 
 // ---------- Threads (curious-coder/threads-scraper) ----------
@@ -150,7 +186,7 @@ interface FacebookItem {
 
 export async function searchFacebook(
   pageUrls: string[],
-  resultsLimit = 15
+  resultsLimit = 10
 ): Promise<ApifyRawMention[]> {
   if (!isApifyEnabled() || pageUrls.length === 0) return [];
   const items = (await runActor("apify/facebook-posts-scraper", {
@@ -180,7 +216,7 @@ interface TwitterItem {
 
 export async function searchTwitter(
   query: string,
-  maxItems = 30
+  maxItems = 15
 ): Promise<ApifyRawMention[]> {
   if (!isApifyEnabled() || !query) return [];
   const items = (await runActor("apidojo/twitter-scraper-lite", {
@@ -201,6 +237,12 @@ export async function searchTwitter(
 }
 
 // ---------- Orchestrator ----------
+// Threads has no maintained free Apify actor; that one stays disabled below.
+// apidojo/twitter-scraper-lite is paid pay-per-use — calls return demo
+// placeholders unless the actor is rented on the Apify account. Demo objects
+// have no `url` field and get filtered out, so calling it without a rental
+// is wasteful but not harmful.
+
 export async function runAllApifySearches(
   keywords: string[],
   facebookPages: string[]
@@ -209,9 +251,67 @@ export async function runAllApifySearches(
   const results = await Promise.all([
     searchTikTok(keywords).catch(() => []),
     searchInstagram(keywords).catch(() => []),
-    searchThreads(keywords).catch(() => []),
     searchFacebook(facebookPages).catch(() => []),
     searchTwitter(keywords.join(" OR ")).catch(() => []),
+  ]);
+  return results.flat();
+}
+
+// Entity-driven orchestrator. For each entity extracted from a Kompas
+// article, fan out social searches across all platforms; preserves the
+// article + entity attribution on every returned mention.
+export async function runEntityApifySearches(
+  watches: EntityWatchInput[],
+  facebookPages: string[],
+  brandKeywords: string[] = ["hariankompas", "kompascom", "kompastv", "kompasiana", "kompas.com", "kompas.id"]
+): Promise<ApifyRawMention[]> {
+  if (!isApifyEnabled()) return [];
+
+  // Brand-anchored search: each unique entity, combined with brand context
+  const allEntities = Array.from(new Set(watches.map((w) => w.entity))).slice(0, 20);
+  const entityToArticleId = new Map<string, number>();
+  for (const w of watches) {
+    if (!entityToArticleId.has(w.entity)) {
+      entityToArticleId.set(w.entity, w.articleId);
+    }
+  }
+
+  // For per-platform searches we batch entities into single calls where
+  // the actor supports multi-keyword input, then attribute each result
+  // back to the entity whose name appears in the post text.
+  const tagPerEntity = (mentions: ApifyRawMention[]): ApifyRawMention[] => {
+    return mentions.map((m) => {
+      const haystack = `${m.title} ${m.snippet}`.toLowerCase();
+      let bestEntity = "";
+      let bestArticleId: number | null = null;
+      for (const e of allEntities) {
+        if (haystack.includes(e.toLowerCase())) {
+          bestEntity = e;
+          bestArticleId = entityToArticleId.get(e) ?? null;
+          break;
+        }
+      }
+      return {
+        ...m,
+        triggered_entity: bestEntity,
+        kompas_article_id: bestArticleId,
+      };
+    });
+  };
+
+  const tikTokKeywords = [...brandKeywords, ...allEntities];
+  const igKeywords = [...brandKeywords, ...allEntities];
+  // Twitter / X search uses the actor's searchTerms — pass a single OR-joined
+  // brand-anchored query. Returns demo placeholders unless the apidojo
+  // actor is rented in the Apify account; demo objects lack a `url` field
+  // and get filtered out, so an unrented actor is harmless (just empty).
+  const twitterQuery = brandKeywords.join(" OR ");
+
+  const results = await Promise.all([
+    searchTikTok(tikTokKeywords).then(tagPerEntity).catch(() => []),
+    searchInstagram(igKeywords).then(tagPerEntity).catch(() => []),
+    searchFacebook(facebookPages).then(tagPerEntity).catch(() => []),
+    searchTwitter(twitterQuery).then(tagPerEntity).catch(() => []),
   ]);
   return results.flat();
 }

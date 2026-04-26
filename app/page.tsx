@@ -66,6 +66,7 @@ export default function Dashboard() {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [scanning, setScanning] = useState(false);
   const [amplificationAlerts, setAmplificationAlerts] = useState(0);
+  const [muted, setMuted] = useState(false);
   const [scanProgress, setScanProgress] = useState<{
     current: number;
     total: number;
@@ -157,6 +158,15 @@ export default function Dashboard() {
   }, [fetchData]);
 
   useEffect(() => {
+    setMuted(localStorage.getItem("kg_amp_mute_v1") === "1");
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "kg_amp_mute_v1") setMuted(e.newValue === "1");
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     const load = async () => {
       try {
@@ -180,16 +190,16 @@ export default function Dashboard() {
     (t) => t.stats.trend === "CRITICAL" || t.stats.trend === "ESCALATING"
   );
 
+  const ampPulse = amplificationAlerts > 0 && !muted;
+
   return (
-    <main
-      className={`min-h-screen p-4 md:p-8 max-w-7xl mx-auto ${
-        amplificationAlerts > 0 ? "ring-4 ring-red-500/60 animate-pulse" : ""
-      }`}
-    >
+    <main className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto">
       {amplificationAlerts > 0 && (
         <a
           href="/amplification"
-          className="block mb-6 border-2 border-red-500 bg-red-500/20 rounded-lg p-4 animate-pulse hover:bg-red-500/30 transition-colors"
+          className={`block mb-6 border-2 border-red-500 bg-red-500/20 rounded-lg p-4 hover:bg-red-500/30 transition-colors ${
+            ampPulse ? "animate-pulse" : ""
+          }`}
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -459,30 +469,51 @@ export default function Dashboard() {
                 )}
                 <div className="space-y-1">
                   {t.stats.sample_headlines.length > 0 ? (
-                    t.stats.sample_headlines.slice(0, 4).map((h, i) => {
-                      const scoreColor =
-                        h.score > 0.05
-                          ? "text-green-500"
-                          : h.score < -0.05
-                            ? "text-red-500"
-                            : "text-slate-600";
-                      return (
-                        <div key={i} className="flex items-start gap-1.5 text-xs">
-                          <span className={`${scoreColor} shrink-0 w-10 text-right font-mono`}>
-                            {h.score > 0 ? "+" : ""}{h.score.toFixed(2)}
-                          </span>
-                          <a
-                            href={h.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-slate-400 hover:text-blue-400 underline truncate"
-                            title={h.title}
-                          >
-                            {h.title}
-                          </a>
-                        </div>
-                      );
-                    })
+                    <>
+                      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-500 pb-1">
+                        <span className="shrink-0 w-10 text-right">article</span>
+                        <span>headline</span>
+                      </div>
+                      {[...t.stats.sample_headlines]
+                        .sort((a, b) => {
+                          const trend = t.stats.trend;
+                          if (trend === "CRITICAL" || trend === "ESCALATING") {
+                            return a.score - b.score; // most negative first
+                          }
+                          if (trend === "DE-ESCALATING") {
+                            return b.score - a.score; // most positive first
+                          }
+                          return 0;
+                        })
+                        .slice(0, 4)
+                        .map((h, i) => {
+                          const scoreColor =
+                            h.score > 0.05
+                              ? "text-green-500"
+                              : h.score < -0.05
+                                ? "text-red-500"
+                                : "text-slate-600";
+                          return (
+                            <div key={i} className="flex items-start gap-1.5 text-xs">
+                              <span
+                                className={`${scoreColor} shrink-0 w-10 text-right font-mono`}
+                                title="Per-article sentiment score (not the topic slope)"
+                              >
+                                {h.score > 0 ? "+" : ""}{h.score.toFixed(2)}
+                              </span>
+                              <a
+                                href={h.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-slate-400 hover:text-blue-400 underline truncate"
+                                title={h.title}
+                              >
+                                {h.title}
+                              </a>
+                            </div>
+                          );
+                        })}
+                    </>
                   ) : (
                     <p className="text-xs text-slate-600">
                       No recent articles
@@ -499,7 +530,7 @@ export default function Dashboard() {
       <div className="mt-8 text-center text-xs text-slate-600">
         &copy; Eberhard Ojong 2026 | KG Media Internal Prediction Algo{" "}
         <a href="/changelog" className="text-blue-400 hover:text-blue-300 underline">
-          v1.0.8
+          v1.3.5
         </a>{" "}
         | Auto-refreshes every 30s | Cron scan daily |{" "}
         <a href="/amplification" className="text-blue-400 hover:text-blue-300 underline">
