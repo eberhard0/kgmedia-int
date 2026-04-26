@@ -18,6 +18,21 @@ export default function Changelog() {
       <div className="space-y-6">
         <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
           <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.3.5</span>
+            <span className="text-xs text-slate-500">April 26, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            The &ldquo;+ N more mentions in this cluster&rdquo; line at the bottom
+            of an expanded cluster card is now a clickable button. Click to reveal
+            every mention in the cluster (rendered in a 480px-tall scrollable
+            list); click again to collapse back to the first 8. Footer on the
+            amplification page reads &ldquo;Created by Eberhard Ojong &middot;
+            &copy; 2026&rdquo;.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
             <span className="text-blue-400 font-bold">v1.3.4</span>
             <span className="text-xs text-slate-500">April 26, 2026</span>
           </div>

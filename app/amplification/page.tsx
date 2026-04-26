@@ -292,7 +292,9 @@ function renderClusterCard(
   c: Cluster,
   tier: "critical" | "trending",
   isOpen: boolean,
-  setOpenCluster: (fn: (cur: number | null) => number | null) => void
+  setOpenCluster: (fn: (cur: number | null) => number | null) => void,
+  showAll: boolean,
+  toggleShowAll: () => void
 ) {
   const accent =
     tier === "critical"
@@ -359,45 +361,58 @@ function renderClusterCard(
       </button>
       {isOpen && (
         <div className="border-t border-slate-700/50 p-4 space-y-4">
-          {c.mentions.slice(0, 8).map((m) => {
-            const meta = metaFor(m.platform);
-            return (
-              <div key={m.id} className="flex flex-col gap-1.5 text-sm">
-                <a
-                  href={m.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-400 hover:text-blue-300 underline line-clamp-2 font-medium"
-                >
-                  {m.title}
-                </a>
-                {m.snippet && m.snippet !== m.title && (
-                  <div className="text-xs text-slate-400 line-clamp-3">
-                    {m.snippet}
-                  </div>
-                )}
-                <div className="text-xs flex flex-wrap gap-2 items-center">
-                  <span
-                    className={`px-1.5 py-0.5 rounded font-mono ${meta.color}`}
-                    style={{ backgroundColor: `${meta.hex}20` }}
+          <div
+            className={
+              showAll
+                ? "space-y-4 max-h-[480px] overflow-y-auto pr-2"
+                : "space-y-4"
+            }
+          >
+            {(showAll ? c.mentions : c.mentions.slice(0, 8)).map((m) => {
+              const meta = metaFor(m.platform);
+              return (
+                <div key={m.id} className="flex flex-col gap-1.5 text-sm">
+                  <a
+                    href={m.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 underline line-clamp-2 font-medium"
                   >
-                    {meta.label}
-                  </span>
-                  <span className="text-slate-200 font-semibold">
-                    {m.source || "(unknown)"}
-                  </span>
-                  <span className="text-slate-600">·</span>
-                  <span className="text-slate-500">
-                    {formatTime(m.published_at || m.scraped_at)}
-                  </span>
+                    {m.title}
+                  </a>
+                  {m.snippet && m.snippet !== m.title && (
+                    <div className="text-xs text-slate-400 line-clamp-3">
+                      {m.snippet}
+                    </div>
+                  )}
+                  <div className="text-xs flex flex-wrap gap-2 items-center">
+                    <span
+                      className={`px-1.5 py-0.5 rounded font-mono ${meta.color}`}
+                      style={{ backgroundColor: `${meta.hex}20` }}
+                    >
+                      {meta.label}
+                    </span>
+                    <span className="text-slate-200 font-semibold">
+                      {m.source || "(unknown)"}
+                    </span>
+                    <span className="text-slate-600">·</span>
+                    <span className="text-slate-500">
+                      {formatTime(m.published_at || m.scraped_at)}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
           {c.mentions.length > 8 && (
-            <div className="text-xs text-slate-500 italic pt-1">
-              + {c.mentions.length - 8} more mentions in this cluster
-            </div>
+            <button
+              onClick={toggleShowAll}
+              className="text-xs text-blue-400 hover:text-blue-300 underline pt-1 cursor-pointer"
+            >
+              {showAll
+                ? `− show fewer (collapse to first 8)`
+                : `+ show all ${c.mentions.length - 8} more mentions`}
+            </button>
           )}
         </div>
       )}
@@ -412,6 +427,7 @@ export default function Amplification() {
   const [scanning, setScanning] = useState(false);
   const [scanMessages, setScanMessages] = useState<string[]>([]);
   const [openCluster, setOpenCluster] = useState<number | null>(null);
+  const [showAllInCluster, setShowAllInCluster] = useState<number | null>(null);
   const [muted, setMuted] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [platformMentions, setPlatformMentions] = useState<Mention[]>([]);
@@ -807,7 +823,19 @@ export default function Amplification() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {data!.clusters
                   .filter((c) => c.tier === "critical")
-                  .map((c) => renderClusterCard(c, "critical", openCluster === c.id, setOpenCluster))}
+                  .map((c) =>
+                    renderClusterCard(
+                      c,
+                      "critical",
+                      openCluster === c.id,
+                      setOpenCluster,
+                      showAllInCluster === c.id,
+                      () =>
+                        setShowAllInCluster(
+                          showAllInCluster === c.id ? null : c.id
+                        )
+                    )
+                  )}
               </div>
             </section>
           )}
@@ -824,7 +852,19 @@ export default function Amplification() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {data!.clusters
                   .filter((c) => c.tier === "trending")
-                  .map((c) => renderClusterCard(c, "trending", openCluster === c.id, setOpenCluster))}
+                  .map((c) =>
+                    renderClusterCard(
+                      c,
+                      "trending",
+                      openCluster === c.id,
+                      setOpenCluster,
+                      showAllInCluster === c.id,
+                      () =>
+                        setShowAllInCluster(
+                          showAllInCluster === c.id ? null : c.id
+                        )
+                    )
+                  )}
               </div>
             </section>
           )}
@@ -889,7 +929,7 @@ export default function Amplification() {
       )}
 
       <div className="mt-10 text-center text-xs text-slate-600">
-        &copy; Eberhard Ojong 2026
+        Created by Eberhard Ojong &middot; &copy; 2026
       </div>
     </main>
   );
