@@ -18,6 +18,23 @@ export default function Changelog() {
       <div className="space-y-6">
         <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
           <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.3.4</span>
+            <span className="text-xs text-slate-500">April 26, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Instagram fix. Confirmed via the new SSE breakdown that IG was
+            returning ~40 posts/scan but the brand filter dropped all of them —
+            because <code className="bg-slate-700 px-1 rounded">apify/instagram-scraper</code>{" "}
+            puts hashtags and @mentions in separate arrays that aren&apos;t
+            part of the caption text. Appending those arrays to the snippet
+            before insert so the brand filter can see <code className="bg-slate-700 px-1 rounded">#kompas</code>{" "}
+            / <code className="bg-slate-700 px-1 rounded">@hariankompas</code>{" "}
+            and let the post through.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
             <span className="text-blue-400 font-bold">v1.3.3</span>
             <span className="text-xs text-slate-500">April 26, 2026</span>
           </div>

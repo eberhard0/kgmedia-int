@@ -91,6 +91,8 @@ interface InstagramItem {
   shortCode?: string;
   ownerUsername?: string;
   caption?: string;
+  hashtags?: string[];
+  mentions?: string[];
   timestamp?: string;
   type?: string;
 }
@@ -121,15 +123,27 @@ export async function searchInstagram(
       return { url, item: i };
     })
     .filter(({ url }) => url.length > 0)
-    .map(({ url, item }) => ({
-      url,
-      platform: "instagram",
-      source: item.ownerUsername || "",
-      title: truncate(item.caption, 200) || `(Instagram ${item.type || "post"})`,
-      snippet: truncate(item.caption, 500),
-      published_at: item.timestamp || null,
-      trigger_query: `Instagram: ${keywords.join(", ")}`,
-    }));
+    .map(({ url, item }) => {
+      // Hashtags + mentions arrays sit separately from the caption text on
+      // IG items. The brand filter downstream checks (title + snippet) for
+      // brand keywords as substrings — without these, posts tagged via
+      // #kompas / @kompascom but not naming the brand in the caption body
+      // get dropped. Append them so the filter can see them.
+      const tagText = (item.hashtags || []).map((h) => `#${h}`).join(" ");
+      const mentionText = (item.mentions || []).map((m) => `@${m}`).join(" ");
+      const captionWithTags = [item.caption, tagText, mentionText]
+        .filter(Boolean)
+        .join(" ");
+      return {
+        url,
+        platform: "instagram",
+        source: item.ownerUsername || "",
+        title: truncate(item.caption, 200) || `(Instagram ${item.type || "post"})`,
+        snippet: truncate(captionWithTags, 500),
+        published_at: item.timestamp || null,
+        trigger_query: `Instagram: ${keywords.join(", ")}`,
+      };
+    });
 }
 
 // ---------- Threads (curious-coder/threads-scraper) ----------
