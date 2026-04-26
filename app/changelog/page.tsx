@@ -18,6 +18,20 @@ export default function Changelog() {
       <div className="space-y-6">
         <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
           <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.3.1</span>
+            <span className="text-xs text-slate-500">April 26, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Scan progress messages now persist after the scan completes (with a
+            &ldquo;Last Scan&rdquo; header and a clear button) so you can
+            actually read the breakdown / drop-count lines instead of having
+            them disappear the second the run ends. Header subtitle updated to
+            describe the new brand-mention focus and tier thresholds.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
             <span className="text-blue-400 font-bold">v1.3.0</span>
             <span className="text-xs text-slate-500">April 26, 2026</span>
           </div>

@@ -522,7 +522,8 @@ export default function Amplification() {
             <span className="text-blue-400">KG Media</span> Amplification Watch
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Detects when 3+ external sources mention a Kompas controversy within 24h.
+            Tracks external posts that name a KG Media brand. Critical alert at
+            100+ mentions / 3+ sources in 24h; trending watch at 10+.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -572,12 +573,23 @@ export default function Amplification() {
         </div>
       )}
 
-      {/* Scan progress */}
-      {scanning && scanMessages.length > 0 && (
+      {/* Scan progress — persists after scan completes so the user can read
+          breakdown / drop counts; cleared when the next scan starts. */}
+      {scanMessages.length > 0 && (
         <div className="mb-6 border border-blue-500/30 bg-blue-500/5 rounded-lg p-4">
-          <h2 className="text-blue-400 font-bold text-sm uppercase tracking-wider mb-2">
-            Scan Progress
-          </h2>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-blue-400 font-bold text-sm uppercase tracking-wider">
+              {scanning ? "Scan Progress" : "Last Scan"}
+            </h2>
+            {!scanning && (
+              <button
+                onClick={() => setScanMessages([])}
+                className="text-[11px] text-slate-500 hover:text-slate-300 cursor-pointer"
+              >
+                clear
+              </button>
+            )}
+          </div>
           <div className="space-y-1 text-xs font-mono text-slate-300">
             {scanMessages.map((m, i) => (
               <div key={i}>&gt; {m}</div>
