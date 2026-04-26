@@ -368,7 +368,7 @@ export default function FAQ() {
       <div className="mt-12 text-center text-xs text-slate-600">
         &copy; Eberhard Ojong 2026 | KG Media Internal Prediction Algo{" "}
         <a href="/changelog" className="text-blue-400 hover:text-blue-300 underline">
-          v1.3.2
+          v1.3.3
         </a>{" "}
         | KG Media News
       </div>

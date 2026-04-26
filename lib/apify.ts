@@ -65,7 +65,7 @@ interface TikTokItem {
 
 export async function searchTikTok(
   keywords: string[],
-  resultsPerPage = 20
+  resultsPerPage = 10
 ): Promise<ApifyRawMention[]> {
   if (!isApifyEnabled() || keywords.length === 0) return [];
   const items = (await runActor("clockworks/free-tiktok-scraper", {
@@ -95,7 +95,7 @@ interface InstagramItem {
   type?: string;
 }
 
-function keywordsToHashtagUrls(keywords: string[], max = 8): string[] {
+function keywordsToHashtagUrls(keywords: string[], max = 4): string[] {
   return keywords
     .map((k) => k.toLowerCase().replace(/[^a-z0-9_]/g, ""))
     .filter((k) => k.length >= 3 && k.length <= 30)
@@ -105,7 +105,7 @@ function keywordsToHashtagUrls(keywords: string[], max = 8): string[] {
 
 export async function searchInstagram(
   keywords: string[],
-  resultsLimit = 20
+  resultsLimit = 10
 ): Promise<ApifyRawMention[]> {
   if (!isApifyEnabled() || keywords.length === 0) return [];
   const directUrls = keywordsToHashtagUrls(keywords);
@@ -172,7 +172,7 @@ interface FacebookItem {
 
 export async function searchFacebook(
   pageUrls: string[],
-  resultsLimit = 15
+  resultsLimit = 10
 ): Promise<ApifyRawMention[]> {
   if (!isApifyEnabled() || pageUrls.length === 0) return [];
   const items = (await runActor("apify/facebook-posts-scraper", {
@@ -202,7 +202,7 @@ interface TwitterItem {
 
 export async function searchTwitter(
   query: string,
-  maxItems = 30
+  maxItems = 15
 ): Promise<ApifyRawMention[]> {
   if (!isApifyEnabled() || !query) return [];
   const items = (await runActor("apidojo/twitter-scraper-lite", {

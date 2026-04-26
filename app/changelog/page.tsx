@@ -18,6 +18,22 @@ export default function Changelog() {
       <div className="space-y-6">
         <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
           <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.3.3</span>
+            <span className="text-xs text-slate-500">April 26, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Tightened Apify compute usage. Halved per-actor result limits
+            (TikTok 20→10, Instagram 20→10, Facebook 15→10, X 30→15) and
+            cut Instagram hashtag URLs per call from 8 to 4. The Instagram
+            actor was the most expensive line item; with the URL cap halved,
+            its compute cost drops roughly proportionally. Volume per scan
+            should still be enough for cluster formation given the brand
+            filter — fewer-but-relevant posts are what we actually need.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
             <span className="text-blue-400 font-bold">v1.3.2</span>
             <span className="text-xs text-slate-500">April 26, 2026</span>
           </div>
