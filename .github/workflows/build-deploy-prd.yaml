@@ -1,8 +1,8 @@
 name:  Build and push on Production
  
 on:
-  push:
-    branches: [master]
+  release:
+    types: [published]
 
 env:
   DEPLOYMENT_PRD: kgmedia-prediction-algo
@@ -22,5 +22,13 @@ jobs:
         username: ${{ secrets.ACR_USERNAME }}
         password: ${{ secrets.ACR_PASSWORD }}
     - run: |
-        docker build . -t ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.DEPLOYMENT_PRD }}:${{ github.sha }} -f Dockerfile
-        docker push ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.DEPLOYMENT_PRD }}:${{ github.sha }}
+        docker build . -t ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.DEPLOYMENT_PRD }}:${{ github.event.release.tag_name }} -f Dockerfile
+        docker push ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.DEPLOYMENT_PRD }}:${{ github.event.release.tag_name }}
+
+  patch-to-aks-prd:
+    runs-on: node20
+    needs: build-and-push
+    steps:    
+    - name: REST API with curl
+      run: |
+        curl -I -u ${{ secrets.JENKINS_USER }}:${{ secrets.JENKINS_TOKEN }} "https://deploykid.kompaskita.com/job/kgmedia-app/job/kgmedia-prediction-algo/buildWithParameters?token=webhookremot&img_version=${{ github.event.release.tag_name }}"
