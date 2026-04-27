@@ -5,13 +5,12 @@ signal; alerts when external coverage of a Kompas article starts amplifying as a
 controversy.
 
 - Canonical repo: https://github.com/pt-kompas-media-nusantara/prediction-algo
-- Prototype deployment (to be retired after Azure migration): https://kgmedia-int.vercel.app
+- Prototype deployment (to be retired): https://kgmedia-int.vercel.app
 - Reference stack used during prototype: Next.js 16 (App Router) · Supabase · Vercel (Hobby plan)
-- Production target: cloud via CI/CD — pick the guide that matches the chosen cloud:
-  - **Azure** → [DEPLOYMENT.md](./DEPLOYMENT.md)
-  - **AWS** → [DEPLOYMENT-AWS.md](./DEPLOYMENT-AWS.md)
-
-  Both cover runtime requirements, database migration paths, cron equivalents, hosting choices, env var storage, sample CI/CD workflows, and a pre-migration checklist.
+- **Production target (decided 2026-04-27): self-hosted on `predict-test.kompaskita.com`** with vanilla PostgreSQL. No Vercel, no Supabase. **See [SELFHOST.md](./SELFHOST.md)** for the migration runbook, systemd / nginx config templates, and the operational handbook for the team.
+- Older cloud guides retained for reference only:
+  - Azure → [DEPLOYMENT.md](./DEPLOYMENT.md)
+  - AWS → [DEPLOYMENT-AWS.md](./DEPLOYMENT-AWS.md)
 
 ## Surfaces
 

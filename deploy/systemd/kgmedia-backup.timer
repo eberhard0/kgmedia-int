@@ -1,0 +1,11 @@
+[Unit]
+Description=Run KG Media Postgres backup nightly at 02:00 local
+
+[Timer]
+OnCalendar=*-*-* 02:00:00
+AccuracySec=5min
+Persistent=true
+Unit=kgmedia-backup.service
+
+[Install]
+WantedBy=timers.target

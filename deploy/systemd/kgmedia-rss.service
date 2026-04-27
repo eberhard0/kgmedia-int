@@ -1,0 +1,18 @@
+[Unit]
+Description=KG Media RSS / sentiment scan (every 15 min)
+After=kgmedia.service
+Requires=kgmedia.service
+
+[Service]
+Type=oneshot
+User=kgmedia
+Group=kgmedia
+EnvironmentFile=/opt/kgmedia/app/.env.local
+# Calls the locked endpoint with the matching CRON_SECRET.
+# --max-time bounds the SSE stream (the route streams progress events,
+# 60s is comfortably more than a fast scan).
+ExecStart=/usr/bin/curl --silent --show-error --fail --max-time 120 \
+  --header "Authorization: Bearer ${CRON_SECRET}" \
+  http://localhost:3000/api/scan
+StandardOutput=journal
+StandardError=journal

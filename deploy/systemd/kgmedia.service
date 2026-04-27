@@ -1,0 +1,26 @@
+[Unit]
+Description=KG Media Internal Prediction Algo (Next.js)
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=kgmedia
+Group=kgmedia
+WorkingDirectory=/opt/kgmedia/app
+EnvironmentFile=/opt/kgmedia/app/.env.local
+ExecStart=/usr/bin/npm run start
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening — Next.js doesn't need broad privileges
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/kgmedia/app /opt/kgmedia/logs
+
+[Install]
+WantedBy=multi-user.target

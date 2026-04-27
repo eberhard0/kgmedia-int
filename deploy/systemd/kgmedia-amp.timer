@@ -1,0 +1,16 @@
+[Unit]
+Description=Run KG Media amplification (Apify) scan every hour
+
+[Timer]
+# Stagger 5 minutes off the RSS cadence so they don't pile up.
+OnBootSec=7min
+OnUnitActiveSec=1h
+AccuracySec=1min
+Persistent=true
+Unit=kgmedia-amp.service
+
+# To switch to 15-minute Apify scans (~$300/mo), change OnUnitActiveSec to 15min
+# and confirm Apify Starter PAYG is enabled.
+
+[Install]
+WantedBy=timers.target

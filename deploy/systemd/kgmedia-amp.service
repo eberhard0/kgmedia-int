@@ -1,0 +1,17 @@
+[Unit]
+Description=KG Media amplification scan (Apify, hourly)
+After=kgmedia.service
+Requires=kgmedia.service
+
+[Service]
+Type=oneshot
+User=kgmedia
+Group=kgmedia
+EnvironmentFile=/opt/kgmedia/app/.env.local
+# Apify scan can take 90-180s under load (Instagram actor is slow).
+# --max-time set to 5 min for headroom; the route's own maxDuration is 300.
+ExecStart=/usr/bin/curl --silent --show-error --fail --max-time 300 \
+  --header "Authorization: Bearer ${CRON_SECRET}" \
+  http://localhost:3000/api/amplification/scan
+StandardOutput=journal
+StandardError=journal
