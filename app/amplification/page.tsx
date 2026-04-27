@@ -425,8 +425,6 @@ function renderClusterCard(
 export default function Amplification() {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [scanning, setScanning] = useState(false);
-  const [scanMessages, setScanMessages] = useState<string[]>([]);
   const [openCluster, setOpenCluster] = useState<number | null>(null);
   const [showAllInCluster, setShowAllInCluster] = useState<number | null>(null);
   const [muted, setMuted] = useState(false);
@@ -477,47 +475,6 @@ export default function Amplification() {
     }
   }, []);
 
-  const triggerScan = async () => {
-    setScanning(true);
-    setScanMessages(["Starting amplification scan…"]);
-    try {
-      const res = await fetch("/api/amplification/scan");
-      const reader = res.body?.getReader();
-      if (!reader) return;
-      const decoder = new TextDecoder();
-      let buffer = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n\n");
-        buffer = lines.pop() || "";
-        for (const line of lines) {
-          const match = line.match(/^data: (.+)$/m);
-          if (!match) continue;
-          try {
-            const ev = JSON.parse(match[1]);
-            if (ev.type === "progress") {
-              setScanMessages((prev) => [...prev, ev.message]);
-            } else if (ev.type === "complete") {
-              setScanMessages((prev) => [
-                ...prev,
-                `Done. ${ev.summary.inserted} new mentions, ${ev.summary.clustersActive} active clusters.`,
-              ]);
-            } else if (ev.type === "error") {
-              setScanMessages((prev) => [...prev, `ERROR: ${ev.message}`]);
-            }
-          } catch {
-            // ignore parse errors
-          }
-        }
-      }
-    } finally {
-      await fetchData();
-      setScanning(false);
-    }
-  };
-
   useEffect(() => {
     fetchData();
     const t = setInterval(fetchData, 30000);
@@ -554,13 +511,6 @@ export default function Amplification() {
               {muted ? "🔕 Muted" : "🔔 Mute alerts"}
             </button>
           )}
-          <button
-            onClick={triggerScan}
-            disabled={scanning}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 rounded text-sm font-medium transition-colors cursor-pointer"
-          >
-            {scanning ? "Scanning…" : "Scan Now"}
-          </button>
         </div>
       </div>
 
@@ -587,31 +537,6 @@ export default function Amplification() {
                 .
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Scan progress — persists after scan completes so the user can read
-          breakdown / drop counts; cleared when the next scan starts. */}
-      {scanMessages.length > 0 && (
-        <div className="mb-6 border border-blue-500/30 bg-blue-500/5 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-blue-400 font-bold text-sm uppercase tracking-wider">
-              {scanning ? "Scan Progress" : "Last Scan"}
-            </h2>
-            {!scanning && (
-              <button
-                onClick={() => setScanMessages([])}
-                className="text-[11px] text-slate-500 hover:text-slate-300 cursor-pointer"
-              >
-                clear
-              </button>
-            )}
-          </div>
-          <div className="space-y-1 text-xs font-mono text-slate-300">
-            {scanMessages.map((m, i) => (
-              <div key={i}>&gt; {m}</div>
-            ))}
           </div>
         </div>
       )}

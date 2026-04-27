@@ -1,8 +1,10 @@
 import { runAmplificationScan } from "@/lib/amplification";
+import { isAuthorizedCronRequest, unauthorizedScanResponse } from "@/lib/cron-auth";
 
 export const maxDuration = 300;
 
-export async function GET() {
+export async function GET(req: Request) {
+  if (!isAuthorizedCronRequest(req)) return unauthorizedScanResponse();
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({

@@ -2,6 +2,7 @@ import { TRACKED_TOPICS, ESCALATION_WINDOW_HOURS } from "@/lib/config";
 import { scrapeTopic, insertArticles, getExistingUrls } from "@/lib/scraper";
 import { computeTopicStats } from "@/lib/escalation";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { isAuthorizedCronRequest, unauthorizedScanResponse } from "@/lib/cron-auth";
 
 export const maxDuration = 300;
 
@@ -20,7 +21,8 @@ async function getRecentArticles(topic: string) {
   return data || [];
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  if (!isAuthorizedCronRequest(req)) return unauthorizedScanResponse();
   const encoder = new TextEncoder();
   const total = TRACKED_TOPICS.length;
 

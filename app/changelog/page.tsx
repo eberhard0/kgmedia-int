@@ -18,6 +18,26 @@ export default function Changelog() {
       <div className="space-y-6">
         <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
           <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.4.1</span>
+            <span className="text-xs text-slate-500">April 27, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Locked down the scan endpoints to stop abuse-driven Apify spend.{" "}
+            <code className="bg-slate-700 px-1 rounded">/api/scan</code> and{" "}
+            <code className="bg-slate-700 px-1 rounded">/api/amplification/scan</code>{" "}
+            now reject any request without{" "}
+            <code className="bg-slate-700 px-1 rounded">Authorization: Bearer ${"{"}CRON_SECRET{"}"}</code>,
+            which Vercel automatically attaches to its scheduled cron
+            invocations. Removed the &ldquo;Scan Now&rdquo; buttons from both
+            the web amplification page and the mobile dashboard — the daily
+            cron is the only legitimate trigger now. The persistent &ldquo;Last
+            Scan&rdquo; panel is gone too since it would never populate from a
+            public dashboard.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
             <span className="text-blue-400 font-bold">v1.4.0</span>
             <span className="text-xs text-slate-500">April 27, 2026</span>
           </div>
