@@ -18,6 +18,23 @@ export default function Changelog() {
       <div className="space-y-6">
         <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
           <div className="flex items-center gap-3 mb-2">
+            <span className="text-blue-400 font-bold">v1.4.0</span>
+            <span className="text-xs text-slate-500">April 27, 2026</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Added a &ldquo;Top stories now&rdquo; punchlist at the top of the
+            amplification page — the 3 biggest live clusters, Critical first,
+            then Trending, sorted by mention count. Each row shows tier, entity,
+            mention/source count, and the source article. Click a row to jump
+            to its full cluster card below and auto-expand it. Replaces the
+            &ldquo;stare at the tile grid and decide where to look&rdquo; dance
+            with a single 3-line directory of what actually warrants editorial
+            attention right now. FAQ updated with a new section pointing at it.
+          </p>
+        </div>
+
+        <div className="border border-slate-700/50 rounded-lg p-4 bg-slate-800/20">
+          <div className="flex items-center gap-3 mb-2">
             <span className="text-blue-400 font-bold">v1.3.5</span>
             <span className="text-xs text-slate-500">April 26, 2026</span>
           </div>

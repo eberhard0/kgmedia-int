@@ -277,6 +277,19 @@ export default function FAQ() {
           </p>
 
           <h3 className="text-base font-semibold text-white mt-4">
+            Where do I look first? — &ldquo;Top stories now&rdquo;
+          </h3>
+          <p>
+            The blue panel at the top of the amplification page is the
+            punchlist. It ranks the 3 biggest active clusters with{" "}
+            <span className="text-red-400 font-semibold">Critical</span>{" "}
+            stories at the top, then <span className="text-yellow-400 font-semibold">Trending</span>{" "}
+            sorted by mention count. Click any row to jump to its full cluster
+            card below. If this panel is empty, there&apos;s nothing for editorial
+            to act on right now and you can close the tab.
+          </p>
+
+          <h3 className="text-base font-semibold text-white mt-4">
             How do I read a cluster card?
           </h3>
           <ul className="list-disc list-inside space-y-1 text-slate-300 ml-2">
@@ -368,7 +381,7 @@ export default function FAQ() {
       <div className="mt-12 text-center text-xs text-slate-600">
         &copy; Eberhard Ojong 2026 | KG Media Internal Prediction Algo{" "}
         <a href="/changelog" className="text-blue-400 hover:text-blue-300 underline">
-          v1.3.5
+          v1.4.0
         </a>{" "}
         | KG Media News
       </div>

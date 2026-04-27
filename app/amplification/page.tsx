@@ -313,7 +313,8 @@ function renderClusterCard(
   return (
     <div
       key={c.id}
-      className={`border ${accent.border} rounded-lg bg-slate-800/30 hover:bg-slate-800/50 transition-colors`}
+      id={`cluster-${c.id}`}
+      className={`border ${accent.border} rounded-lg bg-slate-800/30 hover:bg-slate-800/50 transition-colors scroll-mt-24`}
     >
       <button
         onClick={() => setOpenCluster((cur) => (cur === c.id ? null : c.id))}
@@ -621,6 +622,78 @@ export default function Amplification() {
         </div>
       ) : (
         <>
+          {/* Top stories now — punchlist of the 3 biggest live clusters,
+              Critical first, then Trending, sorted by mention count. Clicking
+              a row scrolls to that cluster card and opens it. */}
+          {data!.clusters.length > 0 &&
+            (() => {
+              const tierRank = (t: "critical" | "trending") =>
+                t === "critical" ? 0 : 1;
+              const top = [...data!.clusters]
+                .sort((a, b) => {
+                  const t = tierRank(a.tier) - tierRank(b.tier);
+                  if (t !== 0) return t;
+                  return b.mention_count - a.mention_count;
+                })
+                .slice(0, 3);
+              return (
+                <section className="mb-8 rounded-lg border border-blue-500/40 bg-blue-500/5 p-4">
+                  <h2 className="text-sm uppercase tracking-wider text-blue-300 font-bold mb-3">
+                    Top stories now · {top.length}
+                    <span className="ml-2 text-xs text-slate-500 normal-case font-normal">
+                      what to look at first
+                    </span>
+                  </h2>
+                  <div className="space-y-2">
+                    {top.map((c, i) => {
+                      const isCritical = c.tier === "critical";
+                      const tierBadge = isCritical
+                        ? "bg-red-500/30 text-red-200 border-red-500/40"
+                        : "bg-yellow-500/30 text-yellow-200 border-yellow-500/40";
+                      return (
+                        <button
+                          key={c.id}
+                          onClick={() => {
+                            setOpenCluster(() => c.id);
+                            requestAnimationFrame(() => {
+                              document
+                                .getElementById(`cluster-${c.id}`)
+                                ?.scrollIntoView({
+                                  behavior: "smooth",
+                                  block: "center",
+                                });
+                            });
+                          }}
+                          className="w-full text-left flex items-center flex-wrap gap-2 rounded p-2 bg-slate-800/30 hover:bg-slate-800/60 transition-colors cursor-pointer"
+                        >
+                          <span className="text-slate-500 font-mono text-xs w-4">
+                            {i + 1}.
+                          </span>
+                          <span
+                            className={`text-[10px] px-1.5 py-0.5 rounded border font-bold uppercase tracking-wider ${tierBadge}`}
+                          >
+                            {c.tier}
+                          </span>
+                          <span className="font-bold text-white text-sm">
+                            {c.triggered_entity || "(no entity)"}
+                          </span>
+                          <span className="text-slate-400 text-xs">
+                            {c.mention_count} mentions · {c.source_count}{" "}
+                            sources
+                          </span>
+                          {c.source_article && (
+                            <span className="text-slate-500 text-xs truncate hidden md:inline">
+                              · {c.source_article.title}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })()}
+
           {/* Platform tile grid */}
           {stats && (
             <section className="mb-8">
