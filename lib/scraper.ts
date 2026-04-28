@@ -1,7 +1,8 @@
 import Parser from "rss-parser";
 import { getFeedUrls } from "./feeds";
 import { analyzeSentiment } from "./sentiment";
-import { getSupabaseAdmin, type Article } from "./supabase";
+import { db } from "./db";
+import type { Article } from "./types";
 import { NUM_ARTICLES_PER_FEED, FETCH_DELAY_MS } from "./config";
 
 const parser = new Parser({
@@ -71,27 +72,46 @@ export async function scrapeTopic(
 export async function insertArticles(articles: Article[]): Promise<number> {
   if (articles.length === 0) return 0;
 
-  const { data, error } = await getSupabaseAdmin()
-    .from("articles")
-    .upsert(articles, { onConflict: "url", ignoreDuplicates: true })
-    .select("id");
-
-  if (error) {
-    console.error("Insert error:", error.message);
+  // Build a multi-row INSERT ... ON CONFLICT (url) DO NOTHING RETURNING id.
+  // Parameterize every value so unsanitized titles can't inject SQL.
+  const cols = [
+    "topic", "title", "url", "source", "published_at",
+    "compound_score", "pos_score", "neg_score", "neu_score",
+    "sentiment_label", "analyzer",
+  ];
+  const valuesSql: string[] = [];
+  const params: unknown[] = [];
+  for (const a of articles) {
+    const start = params.length;
+    params.push(
+      a.topic, a.title, a.url, a.source, a.published_at,
+      a.compound_score, a.pos_score, a.neg_score, a.neu_score,
+      a.sentiment_label, a.analyzer
+    );
+    valuesSql.push(
+      `(${cols.map((_, i) => `$${start + i + 1}`).join(", ")})`
+    );
+  }
+  const sql = `
+    INSERT INTO articles (${cols.join(", ")})
+    VALUES ${valuesSql.join(", ")}
+    ON CONFLICT (url) DO NOTHING
+    RETURNING id
+  `;
+  try {
+    const { rowCount } = await db.query(sql, params);
+    return rowCount || 0;
+  } catch (err) {
+    console.error("Insert error:", err instanceof Error ? err.message : err);
     return 0;
   }
-
-  return data?.length || 0;
 }
 
 export async function getExistingUrls(): Promise<Set<string>> {
-  const { data } = await getSupabaseAdmin()
-    .from("articles")
-    .select("url")
-    .gte(
-      "scraped_at",
-      new Date(Date.now() - 72 * 3600 * 1000).toISOString()
-    );
-
-  return new Set((data || []).map((r: { url: string }) => r.url));
+  const cutoff = new Date(Date.now() - 72 * 3600 * 1000).toISOString();
+  const rows = await db.many<{ url: string }>(
+    `SELECT url FROM articles WHERE scraped_at >= $1`,
+    [cutoff]
+  );
+  return new Set(rows.map((r) => r.url));
 }

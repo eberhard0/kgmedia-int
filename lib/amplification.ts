@@ -1,9 +1,6 @@
 import Parser from "rss-parser";
-import {
-  getSupabaseAdmin,
-  type AmplificationMention,
-  type AmplificationCluster,
-} from "./supabase";
+import { db } from "./db";
+import type { AmplificationMention, AmplificationCluster } from "./types";
 import { isApifyEnabled, runEntityApifySearches } from "./apify";
 import {
   isEmbeddingsEnabled,
@@ -147,18 +144,20 @@ interface EntityWatch {
 }
 
 async function getRecentKompasArticles(): Promise<KompasArticleRef[]> {
-  const admin = getSupabaseAdmin();
   const cutoff = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
-  const { data } = await admin
-    .from("articles")
-    .select("id,title,url,topic")
-    .or(
-      KOMPAS_BRAND_TOPIC_PREFIXES.map((p) => `topic.ilike.${p}%`).join(",")
-    )
-    .gte("scraped_at", cutoff)
-    .order("scraped_at", { ascending: false })
-    .limit(60);
-  return (data || []) as KompasArticleRef[];
+  // Build (topic ILIKE $a OR topic ILIKE $b ...) with one param per prefix
+  const orClauses = KOMPAS_BRAND_TOPIC_PREFIXES.map(
+    (_, i) => `topic ILIKE $${i + 1}`
+  ).join(" OR ");
+  const params: unknown[] = KOMPAS_BRAND_TOPIC_PREFIXES.map((p) => `${p}%`);
+  params.push(cutoff);
+  return db.many<KompasArticleRef>(
+    `SELECT id, title, url, topic FROM articles
+     WHERE (${orClauses}) AND scraped_at >= $${params.length}
+     ORDER BY scraped_at DESC
+     LIMIT 60`,
+    params
+  );
 }
 
 async function buildEntityWatches(
@@ -349,16 +348,16 @@ export async function runAmplificationScan(
 
   onProgress?.(`Fetched ${raw.length} raw mentions`);
 
-  const admin = getSupabaseAdmin();
   const cutoff = new Date(
     Date.now() - 72 * 3600 * 1000
   ).toISOString();
-  const { data: existing } = await admin
-    .from("amplification_mentions")
-    .select("url")
-    .gte("scraped_at", cutoff)
-    .limit(20000);
-  const seen = new Set((existing || []).map((r: { url: string }) => r.url));
+  const existing = await db.many<{ url: string }>(
+    `SELECT url FROM amplification_mentions
+     WHERE scraped_at >= $1
+     LIMIT 20000`,
+    [cutoff]
+  );
+  const seen = new Set(existing.map((r) => r.url));
 
   const toInsert: Omit<AmplificationMention, "id">[] = [];
   const urlSet = new Set<string>();
@@ -388,14 +387,38 @@ export async function runAmplificationScan(
 
   let inserted = 0;
   if (toInsert.length > 0) {
-    const { data, error } = await admin
-      .from("amplification_mentions")
-      .upsert(toInsert, { onConflict: "url", ignoreDuplicates: true })
-      .select("id");
-    if (error) {
-      throw new Error(`Supabase insert failed: ${error.message}`);
+    const cols = [
+      "url", "platform", "source", "title", "snippet", "published_at",
+      "tokens", "trigger_query", "cluster_id",
+      "kompas_article_id", "triggered_entity",
+    ];
+    const valuesSql: string[] = [];
+    const params: unknown[] = [];
+    for (const m of toInsert) {
+      const start = params.length;
+      params.push(
+        m.url, m.platform, m.source, m.title, m.snippet, m.published_at,
+        m.tokens, m.trigger_query, m.cluster_id,
+        m.kompas_article_id ?? null, m.triggered_entity ?? null
+      );
+      valuesSql.push(
+        `(${cols.map((_, i) => `$${start + i + 1}`).join(", ")})`
+      );
     }
-    inserted = data?.length || 0;
+    try {
+      const { rowCount } = await db.query(
+        `INSERT INTO amplification_mentions (${cols.join(", ")})
+         VALUES ${valuesSql.join(", ")}
+         ON CONFLICT (url) DO NOTHING
+         RETURNING id`,
+        params
+      );
+      inserted = rowCount || 0;
+    } catch (err) {
+      throw new Error(
+        `amplification_mentions insert failed: ${err instanceof Error ? err.message : err}`
+      );
+    }
   }
 
   if (droppedNoBrand > 0) {
@@ -418,24 +441,24 @@ async function reclusterRecent(): Promise<{
   clustersNew: number;
   clustersCritical: number;
 }> {
-  const admin = getSupabaseAdmin();
   const cutoff = new Date(
     Date.now() - AMPLIFICATION_WINDOW_HOURS * 3600 * 1000
   ).toISOString();
 
-  const { data: mentions } = await admin
-    .from("amplification_mentions")
-    .select("*")
-    .gte("scraped_at", cutoff)
-    .order("scraped_at", { ascending: true })
-    .limit(20000);
+  const items = await db.many<AmplificationMention>(
+    `SELECT * FROM amplification_mentions
+     WHERE scraped_at >= $1
+     ORDER BY scraped_at ASC
+     LIMIT 20000`,
+    [cutoff]
+  );
 
-  const items = (mentions || []) as AmplificationMention[];
   if (items.length === 0) {
-    await admin
-      .from("amplification_clusters")
-      .update({ status: "resolved", updated_at: new Date().toISOString() })
-      .eq("status", "active");
+    await db.query(
+      `UPDATE amplification_clusters
+       SET status = 'resolved', updated_at = NOW()
+       WHERE status = 'active'`
+    );
     return { clustersActive: 0, clustersNew: 0, clustersCritical: 0 };
   }
 
@@ -491,16 +514,19 @@ async function reclusterRecent(): Promise<{
   });
 
   // Mark previous active clusters resolved; we rebuild each scan for simplicity.
-  await admin
-    .from("amplification_clusters")
-    .update({ status: "resolved", updated_at: new Date().toISOString() })
-    .eq("status", "active");
+  await db.query(
+    `UPDATE amplification_clusters
+     SET status = 'resolved', updated_at = NOW()
+     WHERE status = 'active'`
+  );
 
   // Clear stale cluster_id references on mentions outside window
-  await admin
-    .from("amplification_mentions")
-    .update({ cluster_id: null })
-    .lt("scraped_at", cutoff);
+  await db.query(
+    `UPDATE amplification_mentions
+     SET cluster_id = NULL
+     WHERE scraped_at < $1`,
+    [cutoff]
+  );
 
   let clustersNew = 0;
   for (const g of qualifying) {
@@ -545,33 +571,36 @@ async function reclusterRecent(): Promise<{
       (a, b) => b[1] - a[1]
     )[0]?.[0] ?? "";
 
-    const cluster: Omit<AmplificationCluster, "id"> = {
-      keywords: topTokens,
-      first_seen: firstSeen,
-      last_seen: lastSeen,
-      mention_count: g.length,
-      source_count: sourceCount,
-      status: "active",
-      kompas_article_id: dominantArticle,
-      triggered_entity: dominantEntity,
-    };
-
-    const { data } = await admin
-      .from("amplification_clusters")
-      .insert(cluster)
-      .select("id")
-      .single();
-
-    const newId = (data as { id: number } | null)?.id;
+    const inserted = await db.maybeOne<{ id: number }>(
+      `INSERT INTO amplification_clusters
+         (keywords, first_seen, last_seen, mention_count, source_count,
+          status, kompas_article_id, triggered_entity)
+       VALUES ($1, $2, $3, $4, $5, 'active', $6, $7)
+       RETURNING id`,
+      [
+        topTokens,
+        firstSeen,
+        lastSeen,
+        g.length,
+        sourceCount,
+        dominantArticle,
+        dominantEntity,
+      ]
+    );
+    const newId = inserted?.id;
     if (newId) {
       clustersNew++;
-      await admin
-        .from("amplification_mentions")
-        .update({ cluster_id: newId })
-        .in(
-          "id",
-          g.map((m) => m.id).filter((x): x is number => typeof x === "number")
+      const mentionIds = g
+        .map((m) => m.id)
+        .filter((x): x is number => typeof x === "number");
+      if (mentionIds.length > 0) {
+        await db.query(
+          `UPDATE amplification_mentions
+           SET cluster_id = $1
+           WHERE id = ANY($2::bigint[])`,
+          [newId, mentionIds]
         );
+      }
     }
   }
 
@@ -609,21 +638,21 @@ const TRACKED_PLATFORMS = [
 const TIMELINE_HOURS = 24;
 
 export async function getAmplificationStats(): Promise<AmplificationStats> {
-  const admin = getSupabaseAdmin();
   const cutoff = new Date(
     Date.now() - TIMELINE_HOURS * 3600 * 1000
   ).toISOString();
-  const { data } = await admin
-    .from("amplification_mentions")
-    .select("platform,triggered_entity,scraped_at,published_at")
-    .gte("scraped_at", cutoff)
-    .limit(20000);
-  const items = (data || []) as Array<{
+  const items = await db.many<{
     platform: string;
     triggered_entity: string | null;
     scraped_at: string;
     published_at: string | null;
-  }>;
+  }>(
+    `SELECT platform, triggered_entity, scraped_at, published_at
+     FROM amplification_mentions
+     WHERE scraped_at >= $1
+     LIMIT 20000`,
+    [cutoff]
+  );
 
   const now = Date.now();
   const buckets = new Map<string, number[]>();
@@ -697,35 +726,32 @@ export async function getAmplificationStats(): Promise<AmplificationStats> {
 }
 
 export async function getRecentMentions(limit = 50): Promise<AmplificationMention[]> {
-  const admin = getSupabaseAdmin();
   const cutoff = new Date(
     Date.now() - AMPLIFICATION_WINDOW_HOURS * 3600 * 1000
   ).toISOString();
-  const { data } = await admin
-    .from("amplification_mentions")
-    .select("*")
-    .gte("scraped_at", cutoff)
-    .order("scraped_at", { ascending: false })
-    .limit(limit);
-  return (data || []) as AmplificationMention[];
+  return db.many<AmplificationMention>(
+    `SELECT * FROM amplification_mentions
+     WHERE scraped_at >= $1
+     ORDER BY scraped_at DESC
+     LIMIT $2`,
+    [cutoff, limit]
+  );
 }
 
 export async function getMentionsByPlatform(
   platform: string,
   limit = 100
 ): Promise<AmplificationMention[]> {
-  const admin = getSupabaseAdmin();
   const cutoff = new Date(
     Date.now() - AMPLIFICATION_WINDOW_HOURS * 3600 * 1000
   ).toISOString();
-  const { data } = await admin
-    .from("amplification_mentions")
-    .select("*")
-    .eq("platform", platform)
-    .gte("scraped_at", cutoff)
-    .order("scraped_at", { ascending: false })
-    .limit(limit);
-  return (data || []) as AmplificationMention[];
+  return db.many<AmplificationMention>(
+    `SELECT * FROM amplification_mentions
+     WHERE platform = $1 AND scraped_at >= $2
+     ORDER BY scraped_at DESC
+     LIMIT $3`,
+    [platform, cutoff, limit]
+  );
 }
 
 export interface ClusterWithContext extends AmplificationCluster {
@@ -735,27 +761,28 @@ export interface ClusterWithContext extends AmplificationCluster {
 }
 
 export async function getActiveClusters(): Promise<ClusterWithContext[]> {
-  const admin = getSupabaseAdmin();
-  const { data: clusters } = await admin
-    .from("amplification_clusters")
-    .select("*")
-    .eq("status", "active")
-    .order("last_seen", { ascending: false });
-
-  const list = (clusters || []) as AmplificationCluster[];
+  const list = await db.many<AmplificationCluster>(
+    `SELECT * FROM amplification_clusters
+     WHERE status = 'active'
+     ORDER BY last_seen DESC`
+  );
   if (list.length === 0) return [];
 
   const ids = list
     .map((c) => c.id)
     .filter((x): x is number => typeof x === "number");
-  const { data: mentions } = await admin
-    .from("amplification_mentions")
-    .select("*")
-    .in("cluster_id", ids)
-    .order("scraped_at", { ascending: false });
+  const mentions =
+    ids.length === 0
+      ? []
+      : await db.many<AmplificationMention>(
+          `SELECT * FROM amplification_mentions
+           WHERE cluster_id = ANY($1::bigint[])
+           ORDER BY scraped_at DESC`,
+          [ids]
+        );
 
   const byCluster = new Map<number, AmplificationMention[]>();
-  for (const m of (mentions || []) as AmplificationMention[]) {
+  for (const m of mentions) {
     if (m.cluster_id == null) continue;
     const arr = byCluster.get(m.cluster_id) || [];
     arr.push(m);
@@ -774,16 +801,17 @@ export async function getActiveClusters(): Promise<ClusterWithContext[]> {
     { id: number; title: string; url: string; topic: string }
   >();
   if (articleIds.length > 0) {
-    const { data: articles } = await admin
-      .from("articles")
-      .select("id,title,url,topic")
-      .in("id", articleIds);
-    for (const a of (articles || []) as Array<{
+    const articles = await db.many<{
       id: number;
       title: string;
       url: string;
       topic: string;
-    }>) {
+    }>(
+      `SELECT id, title, url, topic FROM articles
+       WHERE id = ANY($1::bigint[])`,
+      [articleIds]
+    );
+    for (const a of articles) {
       articleMap.set(a.id, a);
     }
   }

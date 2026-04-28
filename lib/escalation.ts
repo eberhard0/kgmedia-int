@@ -3,7 +3,7 @@ import {
   SLOPE_THRESHOLD_ESCALATION,
   SLOPE_THRESHOLD_DEESCALATION,
 } from "./config";
-import type { Article } from "./supabase";
+import type { Article } from "./types";
 
 export function computeSlope(
   dataPoints: Array<{ hoursAgo: number; score: number }>

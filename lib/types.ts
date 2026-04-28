@@ -1,32 +1,6 @@
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-let _supabase: SupabaseClient | null = null;
-let _supabaseAdmin: SupabaseClient | null = null;
-
-export function getSupabase(): SupabaseClient {
-  if (!_supabase) {
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
-    }
-    _supabase = createClient(supabaseUrl, supabaseAnonKey);
-  }
-  return _supabase;
-}
-
-export function getSupabaseAdmin(): SupabaseClient {
-  if (!_supabaseAdmin) {
-    const key = supabaseServiceKey || supabaseAnonKey;
-    if (!supabaseUrl || !key) {
-      throw new Error("Missing Supabase credentials");
-    }
-    _supabaseAdmin = createClient(supabaseUrl, key);
-  }
-  return _supabaseAdmin;
-}
+// Shared row-type definitions. Plain interfaces — no client coupling
+// so this file works with either the legacy Supabase client or the new
+// pg-based lib/db.ts.
 
 export interface Article {
   id?: number;

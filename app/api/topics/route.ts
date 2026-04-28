@@ -1,6 +1,7 @@
 import { TRACKED_TOPICS, ESCALATION_WINDOW_HOURS } from "@/lib/config";
 import { computeTopicStats } from "@/lib/escalation";
-import { getSupabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
+import type { Article, TopicSnapshot } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -12,28 +13,29 @@ export async function GET() {
   const topicsData = [];
 
   for (const topicConfig of TRACKED_TOPICS) {
-    const { data: articles } = await getSupabase()
-      .from("articles")
-      .select("*")
-      .eq("topic", topicConfig.name)
-      .gte("scraped_at", cutoff)
-      .order("scraped_at", { ascending: false });
+    const articles = await db.many<Article>(
+      `SELECT * FROM articles
+       WHERE topic = $1 AND scraped_at >= $2
+       ORDER BY scraped_at DESC`,
+      [topicConfig.name, cutoff]
+    );
 
-    const stats = computeTopicStats(articles || []);
+    const stats = computeTopicStats(articles);
 
-    const { data: snapshots } = await getSupabase()
-      .from("topic_snapshots")
-      .select("*")
-      .eq("topic", topicConfig.name)
-      .order("snapshot_at", { ascending: false })
-      .limit(48);
+    const snapshots = await db.many<TopicSnapshot>(
+      `SELECT * FROM topic_snapshots
+       WHERE topic = $1
+       ORDER BY snapshot_at DESC
+       LIMIT 48`,
+      [topicConfig.name]
+    );
 
     topicsData.push({
       topic: topicConfig.name,
       platform: topicConfig.platform,
       handles: topicConfig.handles,
       stats,
-      snapshots: snapshots || [],
+      snapshots,
     });
   }
 

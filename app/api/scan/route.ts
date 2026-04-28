@@ -1,24 +1,23 @@
 import { TRACKED_TOPICS, ESCALATION_WINDOW_HOURS } from "@/lib/config";
 import { scrapeTopic, insertArticles, getExistingUrls } from "@/lib/scraper";
 import { computeTopicStats } from "@/lib/escalation";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { db } from "@/lib/db";
+import type { Article } from "@/lib/types";
 import { isAuthorizedCronRequest, unauthorizedScanResponse } from "@/lib/cron-auth";
 
 export const maxDuration = 300;
 
-async function getRecentArticles(topic: string) {
+async function getRecentArticles(topic: string): Promise<Article[]> {
   const cutoff = new Date(
     Date.now() - ESCALATION_WINDOW_HOURS * 3600 * 1000
   ).toISOString();
 
-  const { data } = await getSupabaseAdmin()
-    .from("articles")
-    .select("*")
-    .eq("topic", topic)
-    .gte("scraped_at", cutoff)
-    .order("scraped_at", { ascending: false });
-
-  return data || [];
+  return db.many<Article>(
+    `SELECT * FROM articles
+     WHERE topic = $1 AND scraped_at >= $2
+     ORDER BY scraped_at DESC`,
+    [topic, cutoff]
+  );
 }
 
 export async function GET(req: Request) {
@@ -56,16 +55,22 @@ export async function GET(req: Request) {
           const recentArticles = await getRecentArticles(topicConfig.name);
           const stats = computeTopicStats(recentArticles);
 
-          await getSupabaseAdmin().from("topic_snapshots").insert({
-            topic: topicConfig.name,
-            avg_compound: stats.avg_compound,
-            article_count: stats.article_count,
-            positive_pct: stats.positive_pct,
-            negative_pct: stats.negative_pct,
-            neutral_pct: stats.neutral_pct,
-            slope: stats.slope,
-            trend: stats.trend,
-          });
+          await db.query(
+            `INSERT INTO topic_snapshots
+               (topic, avg_compound, article_count,
+                positive_pct, negative_pct, neutral_pct, slope, trend)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [
+              topicConfig.name,
+              stats.avg_compound,
+              stats.article_count,
+              stats.positive_pct,
+              stats.negative_pct,
+              stats.neutral_pct,
+              stats.slope,
+              stats.trend,
+            ]
+          );
 
           send({
             type: "done",
