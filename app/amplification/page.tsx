@@ -431,6 +431,10 @@ export default function Amplification() {
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [platformMentions, setPlatformMentions] = useState<Mention[]>([]);
   const [platformLoading, setPlatformLoading] = useState(false);
+  // DEMO BUILD (v1.4.2): Scan Now button restored. Endpoint is unlocked
+  // until v1.4.1's CRON_SECRET check is reapplied.
+  const [scanning, setScanning] = useState(false);
+  const [scanMessages, setScanMessages] = useState<string[]>([]);
 
   useEffect(() => {
     setMuted(localStorage.getItem("kg_amp_mute_v1") === "1");
@@ -442,6 +446,47 @@ export default function Amplification() {
       localStorage.setItem("kg_amp_mute_v1", next ? "1" : "0");
       return next;
     });
+  };
+
+  const triggerScan = async () => {
+    setScanning(true);
+    setScanMessages(["Starting amplification scan…"]);
+    try {
+      const res = await fetch("/api/amplification/scan");
+      const reader = res.body?.getReader();
+      if (!reader) return;
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          const match = line.match(/^data: (.+)$/m);
+          if (!match) continue;
+          try {
+            const ev = JSON.parse(match[1]);
+            if (ev.type === "progress") {
+              setScanMessages((prev) => [...prev, ev.message]);
+            } else if (ev.type === "complete") {
+              setScanMessages((prev) => [
+                ...prev,
+                `Done. ${ev.summary.inserted} new mentions, ${ev.summary.clustersActive} active clusters.`,
+              ]);
+            } else if (ev.type === "error") {
+              setScanMessages((prev) => [...prev, `ERROR: ${ev.message}`]);
+            }
+          } catch {
+            // ignore parse errors
+          }
+        }
+      }
+    } finally {
+      await fetchData();
+      setScanning(false);
+    }
   };
 
   const togglePlatform = async (platform: string) => {
@@ -511,8 +556,39 @@ export default function Amplification() {
               {muted ? "🔕 Muted" : "🔔 Mute alerts"}
             </button>
           )}
+          <button
+            onClick={triggerScan}
+            disabled={scanning}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 rounded text-sm font-medium transition-colors cursor-pointer"
+          >
+            {scanning ? "Scanning…" : "Scan Now"}
+          </button>
         </div>
       </div>
+
+      {/* Scan progress — DEMO BUILD (v1.4.2). Persists after scan completes. */}
+      {scanMessages.length > 0 && (
+        <div className="mb-6 border border-blue-500/30 bg-blue-500/5 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-blue-400 font-bold text-sm uppercase tracking-wider">
+              {scanning ? "Scan Progress" : "Last Scan"}
+            </h2>
+            {!scanning && (
+              <button
+                onClick={() => setScanMessages([])}
+                className="text-[11px] text-slate-500 hover:text-slate-300 cursor-pointer"
+              >
+                clear
+              </button>
+            )}
+          </div>
+          <div className="space-y-1 text-xs font-mono text-slate-300">
+            {scanMessages.map((m, i) => (
+              <div key={i}>&gt; {m}</div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Alert banner */}
       {hasAlerts && (

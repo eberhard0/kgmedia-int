@@ -4,7 +4,11 @@ import { isAuthorizedCronRequest, unauthorizedScanResponse } from "@/lib/cron-au
 export const maxDuration = 300;
 
 export async function GET(req: Request) {
-  if (!isAuthorizedCronRequest(req)) return unauthorizedScanResponse();
+  // DEMO BUILD (v1.4.2): temporarily allow public Scan Now from the dashboard.
+  // Revert this check before re-locking — see v1.4.1 for the closed version.
+  void isAuthorizedCronRequest;
+  void unauthorizedScanResponse;
+  void req;
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
